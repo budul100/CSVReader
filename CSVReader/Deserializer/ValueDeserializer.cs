@@ -5,6 +5,7 @@ using CSVReader.Internals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
 {
@@ -13,12 +14,10 @@ namespace CSVReader.Deserializers
         #region Private Fields
 
         private readonly IEnumerable<ChildDeserializer> childs;
+        private readonly int fromIndex;
         private readonly Type type;
         private readonly Action<string>[] valueSetters;
-
         private ChildDeserializer currentChild;
-
-        private int fromIndex;
 
         #endregion Private Fields
 
@@ -27,8 +26,10 @@ namespace CSVReader.Deserializers
         public ValueDeserializer(Type type)
         {
             this.type = type;
-            Header = type.GetAttribute<ImportRecord>().Header;
-            fromIndex = string.IsNullOrWhiteSpace(Header) ? 0 : 1;
+
+            var headerRegex = type.GetAttribute<ImportRecord>().HeaderRegex;
+            if (!string.IsNullOrWhiteSpace(headerRegex)) HeaderRegex = new Regex($"^{headerRegex}$");
+            fromIndex = string.IsNullOrWhiteSpace(headerRegex) ? 0 : 1;
 
             valueSetters = GetValueSetters().ToArray();
             childs = GetChilds().ToArray();
@@ -42,7 +43,8 @@ namespace CSVReader.Deserializers
         #region Public Properties
 
         public object Content { get; private set; }
-        public string Header { get; }
+
+        public Regex HeaderRegex { get; }
 
         #endregion Public Properties
 
@@ -67,7 +69,7 @@ namespace CSVReader.Deserializers
             {
                 var header = values[0];
 
-                if (string.IsNullOrWhiteSpace(Header) || header == Header)
+                if (HeaderRegex?.IsMatch(header) ?? true)
                 {
                     if (values.Count() > valueSetters.Count())
                         throw new TooManyValuesException();
@@ -83,7 +85,7 @@ namespace CSVReader.Deserializers
                 }
                 else
                 {
-                    if (currentChild != null && !childs.Any(c => c.Reader.Header == header))
+                    if (currentChild != null && !childs.Any(c => c.Reader.HeaderRegex.IsMatch(header)))
                     {
                         success = currentChild.Reader.Set(values);
                     }
@@ -91,7 +93,7 @@ namespace CSVReader.Deserializers
                     if (!success)
                     {
                         currentChild = childs
-                            .SingleOrDefault(c => c.Reader.Header == values[0]);
+                            .SingleOrDefault(c => c.Reader.HeaderRegex.IsMatch(header));
 
                         if (currentChild != null)
                         {
@@ -120,11 +122,11 @@ namespace CSVReader.Deserializers
         private void CheckChilds()
         {
             var sameRecordHeaders = childs
-                .GroupBy(r => r.Reader.Header)
+                .GroupBy(r => r.Reader.HeaderRegex)
                 .Where(g => g.Count() > 1).ToArray();
 
             if (sameRecordHeaders.Any())
-                throw new SameRecordHeaderException(sameRecordHeaders.First().First().Reader.Header);
+                throw new SameRecordHeaderException(sameRecordHeaders.First().First().Reader.HeaderRegex.ToString());
         }
 
         private IEnumerable<ChildDeserializer> GetChilds()
@@ -177,7 +179,7 @@ namespace CSVReader.Deserializers
                 .Where(p => p.Index.HasValue)
                 .OrderBy(p => p.Index.Value).ToArray();
 
-            if (!string.IsNullOrWhiteSpace(Header))
+            if (HeaderRegex != null)
             {
                 yield return null;
             }

@@ -7,16 +7,16 @@ namespace CSVReader.Attributes
     {
         #region Public Constructors
 
-        public ImportRecord(string header)
+        public ImportRecord(string headerRegex)
         {
-            Header = header;
+            HeaderRegex = headerRegex;
         }
 
         #endregion Public Constructors
 
         #region Public Properties
 
-        public string Header { get; }
+        public string HeaderRegex { get; }
 
         #endregion Public Properties
     }

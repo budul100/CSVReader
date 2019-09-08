@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using System.Text.RegularExpressions;
 
 namespace CSVReader.Internals
 {
@@ -8,7 +8,7 @@ namespace CSVReader.Internals
 
         object Content { get; }
 
-        string Header { get; }
+        Regex HeaderRegex { get; }
 
         #endregion Public Properties
 

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
 {
@@ -12,8 +13,8 @@ namespace CSVReader.Deserializers
     {
         #region Private Fields
 
-        private readonly IDeserializer child;
         private readonly MethodInfo addMethod;
+        private readonly IDeserializer child;
         private readonly Type listType;
         private Action<object> valueSetter;
 
@@ -23,7 +24,8 @@ namespace CSVReader.Deserializers
 
         public EnumerableDeserializer(Type type)
         {
-            Header = type.GetAttribute<ImportRecord>().Header;
+            var headerRegex = type.GetAttribute<ImportRecord>().HeaderRegex;
+            if (!string.IsNullOrWhiteSpace(headerRegex)) HeaderRegex = new Regex($"^{headerRegex}$");
 
             listType = typeof(List<>).MakeGenericType(type);
             addMethod = listType.GetMethod("Add");
@@ -39,7 +41,7 @@ namespace CSVReader.Deserializers
 
         public object Content { get; private set; }
 
-        public string Header { get; }
+        public Regex HeaderRegex { get; }
 
         #endregion Public Properties
 
@@ -61,12 +63,14 @@ namespace CSVReader.Deserializers
 
             if (values?.Any() ?? false)
             {
-                if (values.First() == Header)
+                var header = values[0];
+
+                if (HeaderRegex.IsMatch(header))
                     child.Initialize();
 
                 success = child.Set(values);
 
-                if (success && values.First() == Header)
+                if (success && HeaderRegex.IsMatch(header))
                 {
                     valueSetter.Invoke(child.Content);
                 }

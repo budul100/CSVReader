@@ -10,15 +10,14 @@ using System.Threading.Tasks;
 
 namespace CSVReader
 {
-    public class Reader<T>
+    public static class Reader<T>
         where T : class
     {
         #region Private Fields
 
         private static readonly char delimiter;
+        private static readonly string[] newLines = new[] { "\r\n", "\r", "\n" };
         private static readonly Regex trimRegex;
-        private readonly ValueDeserializer deserializer;
-        private readonly string[] newLines = new[] { "\r\n", "\r", "\n" };
 
         #endregion Private Fields
 
@@ -30,16 +29,11 @@ namespace CSVReader
             delimiter = GetDelimiter();
         }
 
-        public Reader()
-        {
-            deserializer = new ValueDeserializer(typeof(T));
-        }
-
         #endregion Public Constructors
 
         #region Public Methods
 
-        public T GetData(string path, IProgress<double> progress)
+        public static T GetData(string path, IProgress<double> progress)
         {
             if (!File.Exists(path))
             {
@@ -49,6 +43,8 @@ namespace CSVReader
             try
             {
                 var lines = GetLines(path).ToArray();
+
+                var deserializer = new ValueDeserializer(typeof(T));
 
                 var index = 0;
                 var sum = (double)lines.Count();
@@ -71,7 +67,7 @@ namespace CSVReader
             }
         }
 
-        public async Task<T> GetDataAsync(string path, IProgress<double> progress)
+        public static async Task<T> GetDataAsync(string path, IProgress<double> progress)
         {
             if (!File.Exists(path))
             {
@@ -96,6 +92,22 @@ namespace CSVReader
             return attribute?.Delimiter ?? default;
         }
 
+        private static IEnumerable<string> GetLines(string path)
+        {
+            var text = File.ReadAllText(path);
+
+            if (trimRegex?.IsMatch(text) ?? false)
+            {
+                text = trimRegex.Match(text).Value;
+            }
+
+            var result = text.Split(
+                separator: newLines,
+                options: StringSplitOptions.None);
+
+            return result;
+        }
+
         private static Regex GetTrimRegex()
         {
             var result = default(Regex);
@@ -108,22 +120,6 @@ namespace CSVReader
                     ? new Regex($"{attribute.TrimRegex}", RegexOptions.Singleline)
                     : null;
             }
-
-            return result;
-        }
-
-        private IEnumerable<string> GetLines(string path)
-        {
-            var text = File.ReadAllText(path);
-
-            if (trimRegex?.IsMatch(text) ?? false)
-            {
-                text = trimRegex.Match(text).Value;
-            }
-
-            var result = text.Split(
-                separator: newLines,
-                options: StringSplitOptions.None);
 
             return result;
         }

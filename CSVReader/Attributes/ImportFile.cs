@@ -5,7 +5,7 @@
         #region Public Constructors
 
         public ImportFile
-            (string header, string trimRegex, char delimiter = '\t') : base(header)
+            (string headerRegex, string trimRegex, char delimiter = '\t') : base(headerRegex)
         {
             TrimRegex = trimRegex;
             Delimiter = delimiter;
