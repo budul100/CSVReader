@@ -1,10 +1,7 @@
-﻿using CSVReader.Attributes;
-using CSVReader.Extensions;
-using CSVReader.Internals;
+﻿using CSVReader.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
@@ -13,43 +10,33 @@ namespace CSVReader.Deserializers
     {
         #region Private Fields
 
-        private readonly MethodInfo addMethod;
-        private readonly IDeserializer child;
+        private readonly ValueDeserializer child;
         private readonly Func<object> contentGetter;
-        private readonly Type listType;
-
+        private readonly Action itemsSetter;
         private object content;
-        private Action<object> valueSetter;
 
         #endregion Private Fields
 
         #region Public Constructors
 
-        public EnumerableDeserializer(Type type, bool isList)
+        public EnumerableDeserializer(Type type)
         {
-            var headerRegex = type.GetAttribute<ImportRecord>().HeaderRegex;
-            if (!string.IsNullOrWhiteSpace(headerRegex)) HeaderRegex = new Regex($"^{headerRegex}$");
+            var contentType = GetContentType(type);
 
-            listType = typeof(List<>).MakeGenericType(type);
-            addMethod = listType.GetMethod("Add");
+            HeaderRegex = contentType.GetHeaderRegex();
+            child = new ValueDeserializer(contentType);
 
-            var getMethod = isList
-                ? listType.GetMethod("ToList")
-                : listType.GetMethod("ToArray");
-            contentGetter = () => getMethod.Invoke(
-                obj: content,
-                parameters: null);
+            var listType = GetListType(contentType);
 
-            child = new ValueDeserializer(type);
-
-            Initialize();
+            itemsSetter = GetItemsSetter(listType);
+            contentGetter = GetContentGetter(
+                type: type,
+                listType: listType);
         }
 
         #endregion Public Constructors
 
         #region Public Properties
-
-        public object Content => contentGetter.Invoke();
 
         public Regex HeaderRegex { get; }
 
@@ -57,46 +44,78 @@ namespace CSVReader.Deserializers
 
         #region Public Methods
 
-        public void Initialize()
+        public object Get()
         {
-            child.Initialize();
+            itemsSetter.Invoke();
 
-            content = Activator.CreateInstance(listType);
-            valueSetter = (value) => addMethod.Invoke(
-                obj: content,
-                parameters: new object[] { value });
+            var result = contentGetter.Invoke();
+            content = null;
+            return result;
         }
 
-        public bool Set(string[] values)
+        public void Set(IEnumerable<string> values)
         {
-            var success = false;
-
-            if (values?.Any() ?? false)
+            if (HeaderRegex.IsMatch(values.First()))
             {
-                var header = values[0];
-
-                if (HeaderRegex.IsMatch(header))
-                {
-                    child.Terminate();
-                    child.Initialize();
-                }
-
-                success = child.Set(values);
-
-                if (success && HeaderRegex.IsMatch(header))
-                {
-                    valueSetter.Invoke(child.Content);
-                }
+                itemsSetter.Invoke();
             }
 
-            return success;
-        }
-
-        public void Terminate()
-        {
-            child.Terminate();
+            child.Set(values);
         }
 
         #endregion Public Methods
+
+        #region Private Methods
+
+        private static Type GetContentType(Type type)
+        {
+            return type.GetGenericArguments().FirstOrDefault()
+                ?? type.GetElementType();
+        }
+
+        private static Type GetListType(Type type)
+        {
+            return typeof(List<>).MakeGenericType(type);
+        }
+
+        private Func<object> GetContentGetter(Type type, Type listType)
+        {
+            var enumerableType = type.GetGenericArguments().FirstOrDefault()
+                ?? type.GetElementType();
+
+            var isList = enumerableType.IsGenericType
+                && enumerableType.GetGenericTypeDefinition() == typeof(List<>);
+
+            var getMethod = isList
+                ? listType.GetMethod("ToList")
+                : listType.GetMethod("ToArray");
+
+            return () => getMethod.Invoke(
+                obj: content,
+                parameters: null);
+        }
+
+        private Action GetItemsSetter(Type listType)
+        {
+            var addMethod = listType.GetMethod("Add");
+
+            return () =>
+            {
+                if (content == null)
+                {
+                    content = Activator.CreateInstance(listType);
+                }
+                else
+                {
+                    var item = child.Get();
+
+                    if (item != null) addMethod.Invoke(
+                        obj: content,
+                        parameters: new object[] { item });
+                }
+            };
+        }
+
+        #endregion Private Methods
     }
 }

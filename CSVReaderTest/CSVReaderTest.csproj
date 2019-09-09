@@ -10,6 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\IVU2UK\Data\PEX\PEX.csproj" />
     <ProjectReference Include="..\CSVReader\CSVReader.csproj" />
   </ItemGroup>
 

@@ -1,11 +1,9 @@
 ﻿using CSVReader.Attributes;
 using CSVReader.Exceptions;
 using CSVReader.Extensions;
-using CSVReader.Internals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
@@ -14,11 +12,13 @@ namespace CSVReader.Deserializers
     {
         #region Private Fields
 
-        private readonly IEnumerable<ChildDeserializer> childs;
+        private readonly IEnumerable<Tuple<IDeserializer, Action>> childs;
         private readonly int fromIndex;
-        private readonly Type type;
-        private readonly Action<string>[] valueSetters;
-        private ChildDeserializer currentChild;
+        private readonly Func<object> initializeGetter;
+        private readonly IEnumerable<Tuple<int, Action<string>>> valuesSetters;
+
+        private object content;
+        private IDeserializer currentChild;
 
         #endregion Private Fields
 
@@ -26,24 +26,19 @@ namespace CSVReader.Deserializers
 
         public ValueDeserializer(Type type)
         {
-            this.type = type;
+            HeaderRegex = type.GetHeaderRegex();
+            fromIndex = HeaderRegex == null ? 0 : 1;
 
-            var headerRegex = type.GetAttribute<ImportRecord>().HeaderRegex;
-            if (!string.IsNullOrWhiteSpace(headerRegex)) HeaderRegex = new Regex($"^{headerRegex}$");
-            fromIndex = string.IsNullOrWhiteSpace(headerRegex) ? 0 : 1;
-
-            valueSetters = GetValueSetters().ToArray();
-            childs = GetChilds().ToArray();
+            initializeGetter = GetInitializeGetter(type);
+            valuesSetters = GetValueSetters(type).ToArray();
+            childs = GetChilds(type).ToArray();
 
             CheckChilds();
-            Initialize();
         }
 
         #endregion Public Constructors
 
         #region Public Properties
-
-        public object Content { get; private set; }
 
         public Regex HeaderRegex { get; }
 
@@ -51,73 +46,50 @@ namespace CSVReader.Deserializers
 
         #region Public Methods
 
-        public void Initialize()
+        public object Get()
         {
-            currentChild = null;
-
             foreach (var child in childs)
             {
-                child.Deserializer.Initialize();
-                child.IsAlreadySet = false;
+                child.Item2.Invoke();
             }
+
+            var result = content;
+            content = null;
+            return result;
         }
 
-        public bool Set(string[] values)
+        public void Set(IEnumerable<string> values)
         {
-            var success = false;
-
             if (values?.Any() ?? false)
             {
-                var header = values[0];
+                var header = values.First();
 
                 if (HeaderRegex?.IsMatch(header) ?? true)
                 {
-                    if (values.Count() > valueSetters.Count())
-                        throw new TooManyValuesException();
+                    if (content != null)
+                        throw new PropertyAlreadySetException();
 
-                    Content = Activator.CreateInstance(type);
+                    content = initializeGetter.Invoke();
 
                     for (var index = fromIndex; index < values.Count(); index++)
                     {
-                        valueSetters[index].Invoke(values[index]);
-                    }
+                        var valueSetter = valuesSetters
+                            .SingleOrDefault(s => s.Item1 == index);
 
-                    success = true;
+                        valueSetter?.Item2.Invoke(values.ElementAt(index));
+                    }
                 }
                 else
                 {
-                    if (currentChild != null && !childs.Any(c => c.Deserializer.HeaderRegex.IsMatch(header)))
-                    {
-                        success = currentChild.Deserializer.Set(values);
-                    }
-
-                    if (!success)
+                    if (!(currentChild?.HeaderRegex.IsMatch(header) ?? false)
+                        && childs.Any(c => c.Item1.HeaderRegex.IsMatch(header)))
                     {
                         currentChild = childs
-                            .SingleOrDefault(c => c.Deserializer.HeaderRegex.IsMatch(header));
-
-                        if (currentChild != null)
-                        {
-                            if (currentChild.IsAlreadySet && !currentChild.IsEnumerable)
-                                throw new PropertyAlreadySetException();
-
-                            success = currentChild.Deserializer.Set(values);
-
-                            currentChild.IsAlreadySet = currentChild.IsAlreadySet || success;
-                        }
+                            .SingleOrDefault(c => c.Item1.HeaderRegex.IsMatch(header))?.Item1;
                     }
+
+                    currentChild?.Set(values);
                 }
-            }
-
-            return success;
-        }
-
-        public void Terminate()
-        {
-            foreach (var child in childs)
-            {
-                child.Deserializer.Terminate();
-                child.ValueSetter();
             }
         }
 
@@ -128,59 +100,43 @@ namespace CSVReader.Deserializers
         private void CheckChilds()
         {
             var sameRecordHeaders = childs
-                .GroupBy(r => r.Deserializer.HeaderRegex)
+                .Where(r => r.Item1.HeaderRegex != null)
+                .GroupBy(r => r.Item1.HeaderRegex)
                 .Where(g => g.Count() > 1).ToArray();
 
             if (sameRecordHeaders.Any())
-                throw new SameRecordHeaderException(sameRecordHeaders.First().First().Deserializer.HeaderRegex.ToString());
+                throw new SameRecordHeaderException(
+                    sameRecordHeaders.First().First().Item1.HeaderRegex?.ToString());
         }
 
-        private IEnumerable<ChildDeserializer> GetChilds()
+        private IEnumerable<Tuple<IDeserializer, Action>> GetChilds(Type type)
         {
             var classProperties = type.GetProperties()
-                .Where(p => p.PropertyType.IsClassType()).ToArray();
+                .Where(p => p.PropertyType.IsClassType()
+                    || p.PropertyType.IsEnumerableType()).ToArray();
 
             foreach (var property in classProperties)
             {
-                var deserializer = new ValueDeserializer(property.PropertyType);
+                var isEnumerable = property.PropertyType.IsEnumerableType();
 
-                yield return new ChildDeserializer
-                {
-                    IsEnumerable = false,
-                    Deserializer = deserializer,
-                    ValueSetter = () => SetChildValue(
-                        property: property,
-                        deserializer: deserializer),
-                };
-            }
+                var deserializer = isEnumerable
+                    ? (IDeserializer)new EnumerableDeserializer(property.PropertyType)
+                    : (IDeserializer)new ValueDeserializer(property.PropertyType);
 
-            var enumerableProperties = type.GetProperties()
-                .Where(p => p.PropertyType.IsEnumerableType()).ToArray();
-
-            foreach (var property in enumerableProperties)
-            {
-                var type = property.PropertyType?.GetGenericArguments().FirstOrDefault()
-                    ?? property.PropertyType?.GetElementType();
-
-                var isList = type.IsGenericType
-                    && type.GetGenericTypeDefinition() == typeof(List<>);
-
-                var deserializer = new EnumerableDeserializer(
-                    type: type,
-                    isList: isList);
-
-                yield return new ChildDeserializer
-                {
-                    IsEnumerable = true,
-                    Deserializer = deserializer,
-                    ValueSetter = () => SetChildValue(
-                        property: property,
-                        deserializer: deserializer),
-                };
+                yield return new Tuple<IDeserializer, Action>(
+                    item1: deserializer,
+                    item2: () => property.SetValue(
+                        obj: content,
+                        value: deserializer.Get()));
             }
         }
 
-        private IEnumerable<Action<string>> GetValueSetters()
+        private Func<object> GetInitializeGetter(Type type)
+        {
+            return () => Activator.CreateInstance(type);
+        }
+
+        private IEnumerable<Tuple<int, Action<string>>> GetValueSetters(Type type)
         {
             var properties = type.GetProperties()
                 .Where(p => !(p.PropertyType.IsClassType() || p.PropertyType.IsEnumerableType()))
@@ -193,45 +149,41 @@ namespace CSVReader.Deserializers
                 .Where(p => p.Index.HasValue)
                 .OrderBy(p => p.Index.Value).ToArray();
 
-            if (HeaderRegex != null)
-            {
-                yield return null;
-            }
-
             foreach (var property in properties)
             {
                 if (property.PropertyType == typeof(string))
                 {
-                    yield return (text) => property.Property.SetText(
-                        content: Content,
-                        text: text);
+                    yield return new Tuple<int, Action<string>>(
+                        item1: property.Index.Value,
+                        item2: (text) => property.Property.SetText(
+                            content: content,
+                            text: text));
                 }
                 else if (property.PropertyType == typeof(DateTime))
                 {
-                    yield return (text) => property.Property.SetDateTime(
-                        content: Content,
-                        text: text);
+                    yield return new Tuple<int, Action<string>>(
+                        item1: property.Index.Value,
+                        item2: (text) => property.Property.SetDateTime(
+                            content: content,
+                            text: text));
                 }
                 else if (property.PropertyType == typeof(TimeSpan))
                 {
-                    yield return (text) => property.Property.SetTimeSpan(
-                        content: Content,
-                        text: text);
+                    yield return new Tuple<int, Action<string>>(
+                        item1: property.Index.Value,
+                        item2: (text) => property.Property.SetTimeSpan(
+                            content: content,
+                            text: text));
                 }
                 else
                 {
-                    yield return (text) => property.Property.SetValue(
-                        content: Content,
-                        text: text);
+                    yield return new Tuple<int, Action<string>>(
+                        item1: property.Index.Value,
+                        item2: (text) => property.Property.SetValue(
+                            content: content,
+                            text: text));
                 }
             }
-        }
-
-        private void SetChildValue(PropertyInfo property, IDeserializer deserializer)
-        {
-            if (Content != null) property.SetValue(
-                obj: Content,
-                value: deserializer.Content);
         }
 
         #endregion Private Methods
