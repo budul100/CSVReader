@@ -57,6 +57,8 @@ namespace CSVReader
                     progress?.Report(index++ / sum);
                 }
 
+                deserializer.Terminate();
+
                 return deserializer.Content as T;
             }
             catch (Exception ex)

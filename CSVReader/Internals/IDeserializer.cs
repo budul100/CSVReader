@@ -18,6 +18,8 @@ namespace CSVReader.Internals
 
         bool Set(string[] values);
 
+        void Terminate();
+
         #endregion Public Methods
     }
 }

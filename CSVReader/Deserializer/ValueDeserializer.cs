@@ -5,6 +5,7 @@ using CSVReader.Internals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
@@ -56,7 +57,7 @@ namespace CSVReader.Deserializers
 
             foreach (var child in childs)
             {
-                child.Reader.Initialize();
+                child.Deserializer.Initialize();
                 child.IsAlreadySet = false;
             }
         }
@@ -85,34 +86,39 @@ namespace CSVReader.Deserializers
                 }
                 else
                 {
-                    if (currentChild != null && !childs.Any(c => c.Reader.HeaderRegex.IsMatch(header)))
+                    if (currentChild != null && !childs.Any(c => c.Deserializer.HeaderRegex.IsMatch(header)))
                     {
-                        success = currentChild.Reader.Set(values);
+                        success = currentChild.Deserializer.Set(values);
                     }
 
                     if (!success)
                     {
                         currentChild = childs
-                            .SingleOrDefault(c => c.Reader.HeaderRegex.IsMatch(header));
+                            .SingleOrDefault(c => c.Deserializer.HeaderRegex.IsMatch(header));
 
                         if (currentChild != null)
                         {
                             if (currentChild.IsAlreadySet && !currentChild.IsEnumerable)
                                 throw new PropertyAlreadySetException();
 
-                            success = currentChild.Reader.Set(values);
+                            success = currentChild.Deserializer.Set(values);
 
-                            if (success)
-                            {
-                                if (!currentChild.IsAlreadySet) currentChild.ValueSetter();
-                                currentChild.IsAlreadySet = true;
-                            }
+                            currentChild.IsAlreadySet = currentChild.IsAlreadySet || success;
                         }
                     }
                 }
             }
 
             return success;
+        }
+
+        public void Terminate()
+        {
+            foreach (var child in childs)
+            {
+                child.Deserializer.Terminate();
+                child.ValueSetter();
+            }
         }
 
         #endregion Public Methods
@@ -122,11 +128,11 @@ namespace CSVReader.Deserializers
         private void CheckChilds()
         {
             var sameRecordHeaders = childs
-                .GroupBy(r => r.Reader.HeaderRegex)
+                .GroupBy(r => r.Deserializer.HeaderRegex)
                 .Where(g => g.Count() > 1).ToArray();
 
             if (sameRecordHeaders.Any())
-                throw new SameRecordHeaderException(sameRecordHeaders.First().First().Reader.HeaderRegex.ToString());
+                throw new SameRecordHeaderException(sameRecordHeaders.First().First().Deserializer.HeaderRegex.ToString());
         }
 
         private IEnumerable<ChildDeserializer> GetChilds()
@@ -136,15 +142,15 @@ namespace CSVReader.Deserializers
 
             foreach (var property in classProperties)
             {
-                var reader = new ValueDeserializer(property.PropertyType);
+                var deserializer = new ValueDeserializer(property.PropertyType);
 
                 yield return new ChildDeserializer
                 {
                     IsEnumerable = false,
-                    Reader = reader,
-                    ValueSetter = () => property.SetValue(
-                        obj: Content,
-                        value: reader.Content),
+                    Deserializer = deserializer,
+                    ValueSetter = () => SetChildValue(
+                        property: property,
+                        deserializer: deserializer),
                 };
             }
 
@@ -153,15 +159,23 @@ namespace CSVReader.Deserializers
 
             foreach (var property in enumerableProperties)
             {
-                var reader = new EnumerableDeserializer(property.PropertyType.GetGenericArguments()[0]);
+                var type = property.PropertyType?.GetGenericArguments().FirstOrDefault()
+                    ?? property.PropertyType?.GetElementType();
+
+                var isList = type.IsGenericType
+                    && type.GetGenericTypeDefinition() == typeof(List<>);
+
+                var deserializer = new EnumerableDeserializer(
+                    type: type,
+                    isList: isList);
 
                 yield return new ChildDeserializer
                 {
                     IsEnumerable = true,
-                    Reader = reader,
-                    ValueSetter = () => property.SetValue(
-                        obj: Content,
-                        value: reader.Content)
+                    Deserializer = deserializer,
+                    ValueSetter = () => SetChildValue(
+                        property: property,
+                        deserializer: deserializer),
                 };
             }
         }
@@ -211,6 +225,13 @@ namespace CSVReader.Deserializers
                         text: text);
                 }
             }
+        }
+
+        private void SetChildValue(PropertyInfo property, IDeserializer deserializer)
+        {
+            if (Content != null) property.SetValue(
+                obj: Content,
+                value: deserializer.Content);
         }
 
         #endregion Private Methods

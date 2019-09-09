@@ -10,7 +10,7 @@ namespace CSVReader.Internals
 
         public bool IsEnumerable { get; set; }
 
-        public IDeserializer Reader { get; set; }
+        public IDeserializer Deserializer { get; set; }
 
         public Action ValueSetter { get; set; }
 

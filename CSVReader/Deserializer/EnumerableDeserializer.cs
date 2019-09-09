@@ -15,20 +15,30 @@ namespace CSVReader.Deserializers
 
         private readonly MethodInfo addMethod;
         private readonly IDeserializer child;
+        private readonly Func<object> contentGetter;
         private readonly Type listType;
+
+        private object content;
         private Action<object> valueSetter;
 
         #endregion Private Fields
 
         #region Public Constructors
 
-        public EnumerableDeserializer(Type type)
+        public EnumerableDeserializer(Type type, bool isList)
         {
             var headerRegex = type.GetAttribute<ImportRecord>().HeaderRegex;
             if (!string.IsNullOrWhiteSpace(headerRegex)) HeaderRegex = new Regex($"^{headerRegex}$");
 
             listType = typeof(List<>).MakeGenericType(type);
             addMethod = listType.GetMethod("Add");
+
+            var getMethod = isList
+                ? listType.GetMethod("ToList")
+                : listType.GetMethod("ToArray");
+            contentGetter = () => getMethod.Invoke(
+                obj: content,
+                parameters: null);
 
             child = new ValueDeserializer(type);
 
@@ -39,7 +49,7 @@ namespace CSVReader.Deserializers
 
         #region Public Properties
 
-        public object Content { get; private set; }
+        public object Content => contentGetter.Invoke();
 
         public Regex HeaderRegex { get; }
 
@@ -51,9 +61,9 @@ namespace CSVReader.Deserializers
         {
             child.Initialize();
 
-            Content = Activator.CreateInstance(listType);
+            content = Activator.CreateInstance(listType);
             valueSetter = (value) => addMethod.Invoke(
-                obj: Content,
+                obj: content,
                 parameters: new object[] { value });
         }
 
@@ -66,7 +76,10 @@ namespace CSVReader.Deserializers
                 var header = values[0];
 
                 if (HeaderRegex.IsMatch(header))
+                {
+                    child.Terminate();
                     child.Initialize();
+                }
 
                 success = child.Set(values);
 
@@ -77,6 +90,11 @@ namespace CSVReader.Deserializers
             }
 
             return success;
+        }
+
+        public void Terminate()
+        {
+            child.Terminate();
         }
 
         #endregion Public Methods
