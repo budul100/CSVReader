@@ -26,7 +26,7 @@ namespace CSVReader.Extensions
 
         public static Regex GetHeaderRegex(this Type type)
         {
-            var headerRegex = type.GetAttribute<ImportRecord>().HeaderRegex;
+            var headerRegex = type.GetAttribute<ImportRecord>()?.HeaderRegex;
 
             return string.IsNullOrWhiteSpace(headerRegex)
                 ? default

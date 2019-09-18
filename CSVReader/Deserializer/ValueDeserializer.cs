@@ -123,11 +123,14 @@ namespace CSVReader.Deserializers
                     ? (IDeserializer)new EnumerableDeserializer(property.PropertyType)
                     : (IDeserializer)new ValueDeserializer(property.PropertyType);
 
-                yield return new Tuple<IDeserializer, Action>(
-                    item1: deserializer,
-                    item2: () => property.SetValue(
-                        obj: content,
-                        value: deserializer.Get()));
+                if (deserializer.HeaderRegex != null)
+                {
+                    yield return new Tuple<IDeserializer, Action>(
+                        item1: deserializer,
+                        item2: () => property.SetValue(
+                            obj: content,
+                            value: deserializer.Get()));
+                }
             }
         }
 
