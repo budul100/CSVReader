@@ -1,7 +1,9 @@
 ﻿using CSVReader.Attributes;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using TB.ComponentModel;
@@ -24,6 +26,12 @@ namespace CSVReader.Extensions
             return property.GetCustomAttribute(typeof(T)) as T;
         }
 
+        public static Type GetContentType(this Type type)
+        {
+            return type.GetGenericArguments().FirstOrDefault()
+                ?? type.GetElementType();
+        }
+
         public static Regex GetHeaderRegex(this Type type)
         {
             var headerRegex = type.GetAttribute<ImportRecord>()?.HeaderRegex;
@@ -31,6 +39,11 @@ namespace CSVReader.Extensions
             return string.IsNullOrWhiteSpace(headerRegex)
                 ? default
                 : new Regex($"^{headerRegex}$");
+        }
+
+        public static Type GetListType(this Type type)
+        {
+            return typeof(List<>).MakeGenericType(type);
         }
 
         public static bool IsClassProperty(this PropertyInfo property)

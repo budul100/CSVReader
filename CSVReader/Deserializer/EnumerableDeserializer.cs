@@ -21,12 +21,12 @@ namespace CSVReader.Deserializers
 
         public EnumerableDeserializer(Type type)
         {
-            var contentType = GetContentType(type);
+            var contentType = type.GetContentType();
 
             HeaderRegex = contentType.GetHeaderRegex();
             child = new ValueDeserializer(contentType);
 
-            var listType = GetListType(contentType);
+            var listType = contentType.GetListType();
 
             itemsSetter = GetItemsSetter(listType);
             contentGetter = GetContentGetter(
@@ -67,21 +67,9 @@ namespace CSVReader.Deserializers
 
         #region Private Methods
 
-        private static Type GetContentType(Type type)
-        {
-            return type.GetGenericArguments().FirstOrDefault()
-                ?? type.GetElementType();
-        }
-
-        private static Type GetListType(Type type)
-        {
-            return typeof(List<>).MakeGenericType(type);
-        }
-
         private Func<object> GetContentGetter(Type type, Type listType)
         {
-            var enumerableType = type.GetGenericArguments().FirstOrDefault()
-                ?? type.GetElementType();
+            var enumerableType = type.GetContentType();
 
             var isList = enumerableType.IsGenericType
                 && enumerableType.GetGenericTypeDefinition() == typeof(List<>);
