@@ -147,6 +147,7 @@ namespace CSVReader.Deserializers
                 {
                     Property = p,
                     p.GetAttribute<ImportField>()?.Index,
+                    p.GetAttribute<ImportField>()?.Format,
                     p.PropertyType,
                 })
                 .Where(p => p.Index.HasValue)
@@ -162,21 +163,25 @@ namespace CSVReader.Deserializers
                             content: content,
                             text: text));
                 }
-                else if (property.PropertyType == typeof(DateTime))
+                else if (property.PropertyType == typeof(DateTime)
+                    || property.PropertyType == typeof(DateTime?))
                 {
                     yield return new Tuple<int, Action<string>>(
                         item1: property.Index.Value,
                         item2: (text) => property.Property.SetDateTime(
                             content: content,
-                            text: text));
+                            text: text,
+                            format: property.Format));
                 }
-                else if (property.PropertyType == typeof(TimeSpan))
+                else if (property.PropertyType == typeof(TimeSpan)
+                    || property.PropertyType == typeof(TimeSpan?))
                 {
                     yield return new Tuple<int, Action<string>>(
                         item1: property.Index.Value,
                         item2: (text) => property.Property.SetTimeSpan(
                             content: content,
-                            text: text));
+                            text: text,
+                            format: property.Format));
                 }
                 else
                 {

@@ -33,50 +33,57 @@ namespace CSVReader
 
         #region Public Methods
 
-        public static T GetData(string path, IProgress<double> progress)
+        public static IEnumerable<T> GetDatas(IEnumerable<string> pathes, IProgress<double> progress)
         {
-            if (!File.Exists(path))
+            var pathesIndex = 0;
+            var pathesSum = (double)pathes.Count();
+
+            foreach (var path in pathes)
             {
-                throw new FileNotFoundException($"The file '{path}' does not exist.");
-            }
-
-            try
-            {
-                var lines = GetLines(path).ToArray();
-
-                var deserializer = new ValueDeserializer(typeof(T));
-
-                var index = 0;
-                var sum = (double)lines.Count();
-
-                foreach (var line in lines)
+                if (!File.Exists(path))
                 {
-                    var values = line.Split(delimiter);
-                    deserializer.Set(values);
-
-                    progress?.Report(index++ / sum);
+                    throw new FileNotFoundException($"The file '{path}' does not exist.");
                 }
 
-                return deserializer.Get() as T;
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException(
-                    message: $"The file '{path}' cannot be red.",
-                    innerException: ex);
+                var result = default(T);
+
+                try
+                {
+                    var lines = GetLines(path).ToArray();
+
+                    var linesIndex = 0;
+                    var linesSum = (double)lines.Count();
+
+                    var deserializer = new ValueDeserializer(typeof(T));
+
+                    foreach (var line in lines)
+                    {
+                        var values = line.Split(delimiter);
+                        deserializer.Set(values);
+
+                        progress?.Report((pathesIndex / pathesSum) + (linesIndex++ / (pathesSum * linesSum)));
+                    }
+
+                    result = deserializer.Get() as T;
+                }
+                catch (Exception ex)
+                {
+                    throw new ApplicationException(
+                        message: $"The file '{path}' cannot be red.",
+                        innerException: ex);
+                }
+
+                yield return result;
+
+                pathesIndex++;
             }
         }
 
-        public static async Task<T> GetDataAsync(string path, IProgress<double> progress)
+        public static async Task<IEnumerable<T>> GetDatasAsync(IEnumerable<string> pathes, IProgress<double> progress)
         {
-            if (!File.Exists(path))
-            {
-                throw new FileNotFoundException($"The file '{path}' does not exist.");
-            }
-
-            var result = await Task.FromResult(GetData(
-                path: path,
-                progress: progress));
+            var result = await Task.FromResult(GetDatas(
+                pathes: pathes,
+                progress: progress).ToArray());
 
             return result;
         }

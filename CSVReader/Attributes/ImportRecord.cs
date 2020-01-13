@@ -3,21 +3,15 @@
 namespace CSVReader.Attributes
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public class ImportRecord : Attribute
+    public sealed class ImportRecord
+        : ImportHeader
     {
         #region Public Constructors
 
         public ImportRecord(string headerRegex)
-        {
-            HeaderRegex = headerRegex;
-        }
+            : base(headerRegex)
+        { }
 
         #endregion Public Constructors
-
-        #region Public Properties
-
-        public string HeaderRegex { get; }
-
-        #endregion Public Properties
     }
 }

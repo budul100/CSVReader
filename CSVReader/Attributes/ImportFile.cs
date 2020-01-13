@@ -1,11 +1,15 @@
-﻿namespace CSVReader.Attributes
+﻿using System;
+
+namespace CSVReader.Attributes
 {
-    public class ImportFile : ImportRecord
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class ImportFile
+        : ImportHeader
     {
         #region Public Constructors
 
-        public ImportFile
-            (string headerRegex, string trimRegex, char delimiter = '\t') : base(headerRegex)
+        public ImportFile(string headerRegex, string trimRegex, char delimiter = '\t')
+            : base(headerRegex)
         {
             TrimRegex = trimRegex;
             Delimiter = delimiter;
