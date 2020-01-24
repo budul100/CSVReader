@@ -8,6 +8,12 @@ namespace CSVReader.Attributes
     {
         #region Public Constructors
 
+        public ImportFile(string headerRegex, char delimiter = '\t')
+            : base(headerRegex)
+        {
+            Delimiter = delimiter;
+        }
+
         public ImportFile(string headerRegex, string trimRegex, char delimiter = '\t')
             : base(headerRegex)
         {
