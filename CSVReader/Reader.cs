@@ -33,7 +33,16 @@ namespace CSVReader
 
         #region Public Methods
 
-        public static IEnumerable<T> GetDatas(IEnumerable<string> pathes, IProgress<double> progress)
+        public static T Get(string path, IProgress<double> progress = default)
+        {
+            var pathes = new string[] { path };
+
+            return Get(
+                pathes: pathes,
+                progress: progress).SingleOrDefault();
+        }
+
+        public static IEnumerable<T> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
         {
             var pathesIndex = 0;
             var pathesSum = (double)pathes.Count();
@@ -79,9 +88,18 @@ namespace CSVReader
             }
         }
 
-        public static async Task<IEnumerable<T>> GetDatasAsync(IEnumerable<string> pathes, IProgress<double> progress)
+        public static async Task<T> GetAsync(string path, IProgress<double> progress = default)
         {
-            var result = await Task.FromResult(GetDatas(
+            var result = await Task.FromResult(Get(
+                path: path,
+                progress: progress));
+
+            return result;
+        }
+
+        public static async Task<IEnumerable<T>> GetAsync(IEnumerable<string> pathes, IProgress<double> progress = default)
+        {
+            var result = await Task.FromResult(Get(
                 pathes: pathes,
                 progress: progress).ToArray());
 
