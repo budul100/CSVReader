@@ -5,10 +5,6 @@ VisualStudioVersion = 16.0.29230.47
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CSVReader", "CSVReader\CSVReader.csproj", "{9A372945-4B31-4490-84CF-B1D653E908BB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CSVReaderTest", "CSVReaderTest\CSVReaderTest.csproj", "{4CCE9A0A-6CE0-4926-9DFD-34B283B0F4FE}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PEX", "..\..\IVU2UK\Data\PEX\PEX.csproj", "{623B1032-ACF7-4E4B-9D24-B296624D5D30}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,14 +15,6 @@ Global
 		{9A372945-4B31-4490-84CF-B1D653E908BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9A372945-4B31-4490-84CF-B1D653E908BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9A372945-4B31-4490-84CF-B1D653E908BB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4CCE9A0A-6CE0-4926-9DFD-34B283B0F4FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4CCE9A0A-6CE0-4926-9DFD-34B283B0F4FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4CCE9A0A-6CE0-4926-9DFD-34B283B0F4FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4CCE9A0A-6CE0-4926-9DFD-34B283B0F4FE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{623B1032-ACF7-4E4B-9D24-B296624D5D30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{623B1032-ACF7-4E4B-9D24-B296624D5D30}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{623B1032-ACF7-4E4B-9D24-B296624D5D30}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{623B1032-ACF7-4E4B-9D24-B296624D5D30}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
