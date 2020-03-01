@@ -19,16 +19,27 @@ namespace CSVReader.Extensions
             return type.GetCustomAttribute(typeof(T)) as T;
         }
 
+        public static IEnumerable<PropertyInfo> GetChildProperties(this Type type)
+        {
+            var result = type.GetProperties()
+                .Where(p => p.PropertyType.IsClassType()
+                    || p.PropertyType.IsClassEnumerable()).ToArray();
+
+            return result;
+        }
+
         public static Type GetContentType(this Type type)
         {
             return type.GetGenericArguments().FirstOrDefault()
                 ?? type.GetElementType();
         }
 
-        public static IEnumerable<FieldDescription> GetFieldDescriptions(this Type type)
+        public static IEnumerable<FieldDefinition> GetFieldDefinitions(this Type type)
         {
             var properties = type.GetProperties()
-                .Where(p => !(p.PropertyType.IsClassType() || p.PropertyType.IsEnumerableType())).ToArray();
+                .Where(p => p.GetAttribute<ImportField>() != default)
+                .Where(p => !p.PropertyType.IsClassType())
+                .Where(p => !p.PropertyType.IsClassEnumerable()).ToArray();
 
             foreach (var property in properties)
             {
@@ -38,7 +49,7 @@ namespace CSVReader.Extensions
                 {
                     var length = property.GetAttribute<ImportField>()?.Length ?? 1;
 
-                    var result = new FieldDescription
+                    var result = new FieldDefinition
                     {
                         Format = property.GetAttribute<ImportField>()?.Format,
                         Index = index.Value,
@@ -66,6 +77,27 @@ namespace CSVReader.Extensions
             return typeof(List<>).MakeGenericType(type);
         }
 
+        public static bool IsClassEnumerable(this Type type)
+        {
+            var result = type.GetInterfaces()
+                .Where(t => t.IsGenericType)
+                .Where(t => t.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                .Select(t => t.GetContentType())
+                .FirstOrDefault().IsClassType();
+
+            return result;
+        }
+
+        public static bool IsClassType(this Type type)
+        {
+            if (type == default || type == typeof(string) || type.IsEnumerableType())
+            {
+                return false;
+            }
+
+            return type.IsClass;
+        }
+
         public static bool IsEnumerableType(this Type type)
         {
             if (type == null || type == typeof(string))
@@ -74,6 +106,14 @@ namespace CSVReader.Extensions
             }
 
             return typeof(IEnumerable).IsAssignableFrom(type);
+        }
+
+        public static bool IsListType(this Type type)
+        {
+            var result = type.IsGenericType
+                && type.GetGenericTypeDefinition() == typeof(IList<>);
+
+            return result;
         }
 
         #endregion Public Methods

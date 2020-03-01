@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace CSVReader.Models
 {
-    internal class ChildDeserializer
+    internal class ChildDefinition
     {
         #region Public Properties
 

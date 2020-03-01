@@ -51,7 +51,7 @@ namespace CSVReader.Deserializers
 
         public override void Set(IEnumerable<string> values)
         {
-            if (HeaderRegex.IsMatch(values.First()))
+            if (HeaderRegex?.IsMatch(values.First()) ?? true)
             {
                 itemsSetter.Invoke();
             }

@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace CSVReader.Models
 {
-    internal class FieldDescription
+    internal class FieldDefinition
     {
         #region Public Properties
 

@@ -12,6 +12,10 @@ namespace CSVReader.Attributes
             : base(headerRegex)
         { }
 
+        public ImportRecord()
+            : this(default)
+        { }
+
         #endregion Public Constructors
     }
 }

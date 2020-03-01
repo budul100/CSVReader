@@ -42,7 +42,7 @@ namespace CSVReader.Extensions
         }
 
         public static T GetAttribute<T>(this PropertyInfo property)
-                            where T : class
+            where T : class
         {
             return property.GetCustomAttribute(typeof(T)) as T;
         }
@@ -50,16 +50,6 @@ namespace CSVReader.Extensions
         public static bool IsClassProperty(this PropertyInfo property)
         {
             return property != null && property.PropertyType.IsClassType();
-        }
-
-        public static bool IsClassType(this Type type)
-        {
-            if (type == null || type == typeof(string) || type.IsEnumerableType())
-            {
-                return false;
-            }
-
-            return type.IsClass;
         }
 
         public static bool IsEnumerableProperty(this PropertyInfo property)

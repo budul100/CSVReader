@@ -14,7 +14,7 @@ namespace CSVReader.Attributes
             Format = format;
         }
 
-        public ImportField(int index, int? length, string format = default)
+        public ImportField(int index, int length, string format = default)
         {
             Index = index;
             Format = format;

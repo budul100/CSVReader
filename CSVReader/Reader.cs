@@ -15,21 +15,9 @@ namespace CSVReader
     {
         #region Private Fields
 
-        private static readonly char delimiter;
         private static readonly string[] newLines = new[] { "\r\n", "\r", "\n" };
-        private static readonly Regex trimRegex;
 
         #endregion Private Fields
-
-        #region Public Constructors
-
-        static Reader()
-        {
-            trimRegex = GetTrimRegex();
-            delimiter = GetDelimiter();
-        }
-
-        #endregion Public Constructors
 
         #region Public Methods
 
@@ -97,6 +85,8 @@ namespace CSVReader
                 var linesIndex = 0;
                 var linesSum = (double)lines.Count();
 
+                var delimiter = GetDelimiter().ToArray();
+
                 var deserializer = new ValueDeserializer(typeof(T));
 
                 foreach (var line in lines)
@@ -119,16 +109,19 @@ namespace CSVReader
             }
         }
 
-        private static char GetDelimiter()
+        private static IEnumerable<char> GetDelimiter()
         {
             var attribute = typeof(T).GetAttribute<ImportFile>();
 
-            return attribute?.Delimiter ?? default;
+            return attribute?.Delimiter?.ToCharArray()
+                ?? Enumerable.Empty<char>();
         }
 
         private static IEnumerable<string> GetLines(string path)
         {
             var text = File.ReadAllText(path);
+
+            var trimRegex = GetTrimRegex();
 
             if (trimRegex?.IsMatch(text) ?? false)
             {

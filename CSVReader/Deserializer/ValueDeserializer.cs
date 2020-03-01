@@ -12,7 +12,7 @@ namespace CSVReader.Deserializers
     {
         #region Private Fields
 
-        private readonly IEnumerable<ChildDeserializer> childDeserializers;
+        private readonly IEnumerable<ChildDefinition> childDefinitions;
         private readonly Func<object> contentGetter;
         private readonly int fromIndex;
         private readonly IDictionary<int, Action<string>> valuesSetters;
@@ -27,11 +27,11 @@ namespace CSVReader.Deserializers
         public ValueDeserializer(Type type)
         {
             HeaderRegex = type.GetHeaderRegex();
-            fromIndex = HeaderRegex == null ? 0 : 1;
+            fromIndex = HeaderRegex == default ? 0 : 1;
 
             contentGetter = GetContentGetter(type);
             valuesSetters = GetValueSetters(type);
-            childDeserializers = GetChilds(type).ToArray();
+            childDefinitions = GetChildDefinitions(type).ToArray();
 
             CheckChilds();
         }
@@ -42,9 +42,10 @@ namespace CSVReader.Deserializers
 
         public override object Get()
         {
-            foreach (var childDeserializer in childDeserializers)
+            foreach (var childDefinition in childDefinitions)
             {
-                childDeserializer.Setter.Invoke();
+                if (content != default)
+                    childDefinition.Setter.Invoke();
             }
 
             var result = content;
@@ -59,9 +60,10 @@ namespace CSVReader.Deserializers
             {
                 var header = values.First();
 
-                if (HeaderRegex?.IsMatch(header) ?? true)
+                if ((HeaderRegex?.IsMatch(header) ?? false)
+                    || !childDefinitions.Any())
                 {
-                    if (content != null)
+                    if (content != default)
                         throw new PropertyAlreadySetException();
 
                     content = contentGetter.Invoke();
@@ -76,10 +78,12 @@ namespace CSVReader.Deserializers
                 }
                 else
                 {
-                    if (!(currentDeserializer?.HeaderRegex.IsMatch(header) ?? false))
+                    if (!(currentDeserializer?.HeaderRegex?.IsMatch(header) ?? false))
                     {
-                        currentDeserializer = childDeserializers
-                            .SingleOrDefault(c => c.HeaderRegex.IsMatch(header))?.Deserializer;
+                        content = contentGetter.Invoke();
+
+                        currentDeserializer = childDefinitions
+                            .FirstOrDefault(c => c.HeaderRegex?.IsMatch(header) ?? true)?.Deserializer;
                     }
 
                     currentDeserializer?.Set(values);
@@ -93,7 +97,7 @@ namespace CSVReader.Deserializers
 
         private void CheckChilds()
         {
-            var sameRecordHeaders = childDeserializers
+            var sameRecordHeaders = childDefinitions
                 .GroupBy(r => r.HeaderRegex)
                 .Where(g => g.Count() > 1).ToArray();
 
@@ -102,33 +106,26 @@ namespace CSVReader.Deserializers
                     sameRecordHeaders.First().First().HeaderRegex?.ToString());
         }
 
-        private IEnumerable<ChildDeserializer> GetChilds(Type type)
+        private IEnumerable<ChildDefinition> GetChildDefinitions(Type type)
         {
-            var properties = type.GetProperties()
-                .Where(p => p.PropertyType.IsClassType()
-                    || p.PropertyType.IsEnumerableType()).ToArray();
+            var properties = type.GetChildProperties().ToArray();
 
             foreach (var property in properties)
             {
-                var isEnumerable = property.PropertyType.IsEnumerableType();
-
-                var deserializer = isEnumerable
+                var deserializer = property.PropertyType.IsClassEnumerable()
                     ? new EnumerableDeserializer(property.PropertyType) as BaseDeserializer
                     : new ValueDeserializer(property.PropertyType) as BaseDeserializer;
 
-                if (deserializer.HeaderRegex != default)
+                var result = new ChildDefinition
                 {
-                    var result = new ChildDeserializer
-                    {
-                        Deserializer = deserializer,
-                        HeaderRegex = deserializer.HeaderRegex,
-                        Setter = () => property.SetValue(
-                            obj: content,
-                            value: deserializer.Get()),
-                    };
+                    Deserializer = deserializer,
+                    HeaderRegex = deserializer.HeaderRegex,
+                    Setter = () => property.SetValue(
+                        obj: content,
+                        value: deserializer.Get()),
+                };
 
-                    yield return result;
-                }
+                yield return result;
             }
         }
 
@@ -139,23 +136,40 @@ namespace CSVReader.Deserializers
 
         private IDictionary<int, Action<string>> GetValueSetters(Type type)
         {
-            var fieldDescriptions = type.GetFieldDescriptions()
+            var fieldDescriptions = type.GetFieldDefinitions()
                 .OrderBy(d => d.Index).ToArray();
 
             var result = new Dictionary<int, Action<string>>();
 
             foreach (var fieldDescription in fieldDescriptions)
             {
-                var isList = fieldDescription.Type.IsGenericType
-                    && fieldDescription.Type.GetGenericTypeDefinition() == typeof(List<>);
-
+                var isList = fieldDescription.Type.IsListType();
                 var length = isList ? fieldDescription.Length : 1;
 
                 for (var position = 0; position < length; position++)
                 {
                     var setter = default(Action<string>);
 
-                    if (fieldDescription.Type == typeof(DateTime) || fieldDescription.Type == typeof(DateTime?))
+                    if (isList)
+                    {
+                        var listType = fieldDescription.Type.GetContentType().GetListType();
+
+                        if (fieldDescription.Type.GetContentType() == typeof(string))
+                        {
+                            setter = (text) => fieldDescription.Property.AddText(
+                                listType: listType,
+                                content: content,
+                                text: text);
+                        }
+                        else
+                        {
+                            setter = (text) => fieldDescription.Property.AddValue(
+                                listType: listType,
+                                content: content,
+                                text: text);
+                        }
+                    }
+                    else if (fieldDescription.Type == typeof(DateTime) || fieldDescription.Type == typeof(DateTime?))
                     {
                         setter = (text) => fieldDescription.Property.SetDateTime(
                             content: content,
@@ -172,20 +186,6 @@ namespace CSVReader.Deserializers
                     else if (fieldDescription.Type == typeof(string))
                     {
                         setter = (text) => fieldDescription.Property.SetText(
-                            content: content,
-                            text: text);
-                    }
-                    else if (fieldDescription.Type == typeof(List<string>))
-                    {
-                        setter = (text) => fieldDescription.Property.AddText(
-                            listType: fieldDescription.Type,
-                            content: content,
-                            text: text);
-                    }
-                    else if (isList)
-                    {
-                        setter = (text) => fieldDescription.Property.AddValue(
-                            listType: fieldDescription.Type,
                             content: content,
                             text: text);
                     }
