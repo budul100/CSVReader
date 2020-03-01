@@ -3,19 +3,19 @@ using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
 {
-    internal interface IDeserializer
+    internal abstract class BaseDeserializer
     {
         #region Public Properties
 
-        Regex HeaderRegex { get; }
+        public Regex HeaderRegex { get; protected set; }
 
         #endregion Public Properties
 
         #region Public Methods
 
-        object Get();
+        public abstract object Get();
 
-        void Set(IEnumerable<string> values);
+        public abstract void Set(IEnumerable<string> values);
 
         #endregion Public Methods
     }

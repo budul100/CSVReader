@@ -1,49 +1,50 @@
-﻿using CSVReader.Attributes;
-using System;
+﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using TB.ComponentModel;
 
 namespace CSVReader.Extensions
 {
-    internal static class CSVReaderExtensions
+    internal static class PropertyExtensions
     {
         #region Public Methods
 
-        public static T GetAttribute<T>(this Type type)
-            where T : class
+        public static void AddText(this PropertyInfo property, Type listType, object content, string text)
         {
-            return type.GetCustomAttribute(typeof(T)) as T;
+            var value = text.Trim();
+
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                var list = GetList(
+                    property: property,
+                    listType: listType,
+                    content: content);
+
+                list.Add(value);
+            }
+        }
+
+        public static void AddValue(this PropertyInfo property, Type listType, object content, string text)
+        {
+            var value = text.Trim();
+
+            if (!string.IsNullOrWhiteSpace(value)
+                && value.IsConvertibleTo(property.PropertyType))
+            {
+                var list = GetList(
+                    property: property,
+                    listType: listType,
+                    content: content);
+
+                list.Add(value.To(property.PropertyType));
+            }
         }
 
         public static T GetAttribute<T>(this PropertyInfo property)
-            where T : class
+                            where T : class
         {
             return property.GetCustomAttribute(typeof(T)) as T;
-        }
-
-        public static Type GetContentType(this Type type)
-        {
-            return type.GetGenericArguments().FirstOrDefault()
-                ?? type.GetElementType();
-        }
-
-        public static Regex GetHeaderRegex(this Type type)
-        {
-            var headerRegex = type.GetAttribute<ImportHeader>()?.HeaderRegex;
-
-            return string.IsNullOrWhiteSpace(headerRegex)
-                ? default
-                : new Regex($"^{headerRegex}$");
-        }
-
-        public static Type GetListType(this Type type)
-        {
-            return typeof(List<>).MakeGenericType(type);
         }
 
         public static bool IsClassProperty(this PropertyInfo property)
@@ -64,16 +65,6 @@ namespace CSVReader.Extensions
         public static bool IsEnumerableProperty(this PropertyInfo property)
         {
             return property != null && property.PropertyType.IsEnumerableType();
-        }
-
-        public static bool IsEnumerableType(this Type type)
-        {
-            if (type == null || type == typeof(string))
-            {
-                return false;
-            }
-
-            return typeof(IEnumerable).IsAssignableFrom(type);
         }
 
         public static void SetDateTime(this PropertyInfo property, object content, string text, string format)
@@ -234,6 +225,24 @@ namespace CSVReader.Extensions
                 throw new Exception($"Error in date / time: {year}-{month}-{day} {hour}:{minute}:{second}.{milliSecond} " +
                     $"- {format} {value.Substring(offset, format.Length)}");
             }
+        }
+
+        private static IList GetList(PropertyInfo property, Type listType, object content)
+        {
+            var list = property.GetValue(
+                obj: content,
+                index: default) as IList;
+
+            if (list == default)
+            {
+                list = Activator.CreateInstance(listType) as IList;
+
+                property.SetValue(
+                    obj: content,
+                    value: list);
+            }
+
+            return list;
         }
 
         private static TimeSpan? GetTimeSpan(this string value, string format, int offset = 0) // Offset eliminates need for substring

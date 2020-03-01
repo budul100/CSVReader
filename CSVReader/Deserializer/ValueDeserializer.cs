@@ -1,24 +1,24 @@
-﻿using CSVReader.Attributes;
-using CSVReader.Exceptions;
+﻿using CSVReader.Exceptions;
 using CSVReader.Extensions;
+using CSVReader.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
 {
-    internal class ValueDeserializer : IDeserializer
+    internal class ValueDeserializer
+        : BaseDeserializer
     {
         #region Private Fields
 
-        private readonly IEnumerable<Tuple<IDeserializer, Action>> childs;
+        private readonly IEnumerable<ChildDeserializer> childDeserializers;
+        private readonly Func<object> contentGetter;
         private readonly int fromIndex;
-        private readonly Func<object> initializeGetter;
-        private readonly IEnumerable<Tuple<int, Action<string>>> valuesSetters;
+        private readonly IDictionary<int, Action<string>> valuesSetters;
 
         private object content;
-        private IDeserializer currentChild;
+        private BaseDeserializer currentDeserializer;
 
         #endregion Private Fields
 
@@ -29,36 +29,31 @@ namespace CSVReader.Deserializers
             HeaderRegex = type.GetHeaderRegex();
             fromIndex = HeaderRegex == null ? 0 : 1;
 
-            initializeGetter = GetInitializeGetter(type);
-            valuesSetters = GetValueSetters(type).ToArray();
-            childs = GetChilds(type).ToArray();
+            contentGetter = GetContentGetter(type);
+            valuesSetters = GetValueSetters(type);
+            childDeserializers = GetChilds(type).ToArray();
 
             CheckChilds();
         }
 
         #endregion Public Constructors
 
-        #region Public Properties
-
-        public Regex HeaderRegex { get; }
-
-        #endregion Public Properties
-
         #region Public Methods
 
-        public object Get()
+        public override object Get()
         {
-            foreach (var child in childs)
+            foreach (var childDeserializer in childDeserializers)
             {
-                child.Item2.Invoke();
+                childDeserializer.Setter.Invoke();
             }
 
             var result = content;
-            content = null;
+            content = default;
+
             return result;
         }
 
-        public void Set(IEnumerable<string> values)
+        public override void Set(IEnumerable<string> values)
         {
             if (values?.Any() ?? false)
             {
@@ -69,26 +64,25 @@ namespace CSVReader.Deserializers
                     if (content != null)
                         throw new PropertyAlreadySetException();
 
-                    content = initializeGetter.Invoke();
+                    content = contentGetter.Invoke();
 
                     for (var index = fromIndex; index < values.Count(); index++)
                     {
-                        var valueSetter = valuesSetters
-                            .SingleOrDefault(s => s.Item1 == index);
-
-                        valueSetter?.Item2.Invoke(values.ElementAt(index));
+                        if (valuesSetters.ContainsKey(index))
+                        {
+                            valuesSetters[index]?.Invoke(values.ElementAt(index));
+                        }
                     }
                 }
                 else
                 {
-                    if (!(currentChild?.HeaderRegex.IsMatch(header) ?? false)
-                        && childs.Any(c => c.Item1.HeaderRegex.IsMatch(header)))
+                    if (!(currentDeserializer?.HeaderRegex.IsMatch(header) ?? false))
                     {
-                        currentChild = childs
-                            .SingleOrDefault(c => c.Item1.HeaderRegex.IsMatch(header))?.Item1;
+                        currentDeserializer = childDeserializers
+                            .SingleOrDefault(c => c.HeaderRegex.IsMatch(header))?.Deserializer;
                     }
 
-                    currentChild?.Set(values);
+                    currentDeserializer?.Set(values);
                 }
             }
         }
@@ -99,99 +93,119 @@ namespace CSVReader.Deserializers
 
         private void CheckChilds()
         {
-            var sameRecordHeaders = childs
-                .Where(r => r.Item1.HeaderRegex != null)
-                .GroupBy(r => r.Item1.HeaderRegex)
+            var sameRecordHeaders = childDeserializers
+                .GroupBy(r => r.HeaderRegex)
                 .Where(g => g.Count() > 1).ToArray();
 
             if (sameRecordHeaders.Any())
                 throw new SameRecordHeaderException(
-                    sameRecordHeaders.First().First().Item1.HeaderRegex?.ToString());
+                    sameRecordHeaders.First().First().HeaderRegex?.ToString());
         }
 
-        private IEnumerable<Tuple<IDeserializer, Action>> GetChilds(Type type)
+        private IEnumerable<ChildDeserializer> GetChilds(Type type)
         {
-            var classProperties = type.GetProperties()
+            var properties = type.GetProperties()
                 .Where(p => p.PropertyType.IsClassType()
                     || p.PropertyType.IsEnumerableType()).ToArray();
 
-            foreach (var property in classProperties)
+            foreach (var property in properties)
             {
                 var isEnumerable = property.PropertyType.IsEnumerableType();
 
                 var deserializer = isEnumerable
-                    ? (IDeserializer)new EnumerableDeserializer(property.PropertyType)
-                    : (IDeserializer)new ValueDeserializer(property.PropertyType);
+                    ? new EnumerableDeserializer(property.PropertyType) as BaseDeserializer
+                    : new ValueDeserializer(property.PropertyType) as BaseDeserializer;
 
-                if (deserializer.HeaderRegex != null)
+                if (deserializer.HeaderRegex != default)
                 {
-                    yield return new Tuple<IDeserializer, Action>(
-                        item1: deserializer,
-                        item2: () => property.SetValue(
+                    var result = new ChildDeserializer
+                    {
+                        Deserializer = deserializer,
+                        HeaderRegex = deserializer.HeaderRegex,
+                        Setter = () => property.SetValue(
                             obj: content,
-                            value: deserializer.Get()));
+                            value: deserializer.Get()),
+                    };
+
+                    yield return result;
                 }
             }
         }
 
-        private Func<object> GetInitializeGetter(Type type)
+        private Func<object> GetContentGetter(Type type)
         {
             return () => Activator.CreateInstance(type);
         }
 
-        private IEnumerable<Tuple<int, Action<string>>> GetValueSetters(Type type)
+        private IDictionary<int, Action<string>> GetValueSetters(Type type)
         {
-            var properties = type.GetProperties()
-                .Where(p => !(p.PropertyType.IsClassType() || p.PropertyType.IsEnumerableType()))
-                .Select(p => new
-                {
-                    Property = p,
-                    p.GetAttribute<ImportField>()?.Index,
-                    p.GetAttribute<ImportField>()?.Format,
-                    p.PropertyType,
-                })
-                .Where(p => p.Index.HasValue)
-                .OrderBy(p => p.Index.Value).ToArray();
+            var fieldDescriptions = type.GetFieldDescriptions()
+                .OrderBy(d => d.Index).ToArray();
 
-            foreach (var property in properties)
+            var result = new Dictionary<int, Action<string>>();
+
+            foreach (var fieldDescription in fieldDescriptions)
             {
-                if (property.PropertyType == typeof(string))
+                var isList = fieldDescription.Type.IsGenericType
+                    && fieldDescription.Type.GetGenericTypeDefinition() == typeof(List<>);
+
+                var length = isList ? fieldDescription.Length : 1;
+
+                for (var position = 0; position < length; position++)
                 {
-                    yield return new Tuple<int, Action<string>>(
-                        item1: property.Index.Value,
-                        item2: (text) => property.Property.SetText(
-                            content: content,
-                            text: text));
-                }
-                else if (property.PropertyType == typeof(DateTime)
-                    || property.PropertyType == typeof(DateTime?))
-                {
-                    yield return new Tuple<int, Action<string>>(
-                        item1: property.Index.Value,
-                        item2: (text) => property.Property.SetDateTime(
+                    var setter = default(Action<string>);
+
+                    if (fieldDescription.Type == typeof(DateTime) || fieldDescription.Type == typeof(DateTime?))
+                    {
+                        setter = (text) => fieldDescription.Property.SetDateTime(
                             content: content,
                             text: text,
-                            format: property.Format));
-                }
-                else if (property.PropertyType == typeof(TimeSpan)
-                    || property.PropertyType == typeof(TimeSpan?))
-                {
-                    yield return new Tuple<int, Action<string>>(
-                        item1: property.Index.Value,
-                        item2: (text) => property.Property.SetTimeSpan(
+                            format: fieldDescription.Format);
+                    }
+                    else if (fieldDescription.Type == typeof(TimeSpan) || fieldDescription.Type == typeof(TimeSpan?))
+                    {
+                        setter = (text) => fieldDescription.Property.SetTimeSpan(
                             content: content,
                             text: text,
-                            format: property.Format));
-                }
-                else
-                {
-                    yield return new Tuple<int, Action<string>>(
-                        item1: property.Index.Value,
-                        item2: (text) => property.Property.SetValue(
+                            format: fieldDescription.Format);
+                    }
+                    else if (fieldDescription.Type == typeof(string))
+                    {
+                        setter = (text) => fieldDescription.Property.SetText(
                             content: content,
-                            text: text));
+                            text: text);
+                    }
+                    else if (fieldDescription.Type == typeof(List<string>))
+                    {
+                        setter = (text) => fieldDescription.Property.AddText(
+                            listType: fieldDescription.Type,
+                            content: content,
+                            text: text);
+                    }
+                    else if (isList)
+                    {
+                        setter = (text) => fieldDescription.Property.AddValue(
+                            listType: fieldDescription.Type,
+                            content: content,
+                            text: text);
+                    }
+                    else
+                    {
+                        setter = (text) => fieldDescription.Property.SetValue(
+                            content: content,
+                            text: text);
+                    }
+
+                    if (setter != default)
+                    {
+                        result.Add(
+                            key: fieldDescription.Index + position,
+                            value: setter);
+                    }
                 }
             }
+
+            return result;
         }
 
         #endregion Private Methods

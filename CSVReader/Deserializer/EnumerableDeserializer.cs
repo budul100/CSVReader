@@ -2,17 +2,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace CSVReader.Deserializers
 {
-    internal class EnumerableDeserializer : IDeserializer
+    internal class EnumerableDeserializer
+        : BaseDeserializer
     {
         #region Private Fields
 
         private readonly ValueDeserializer child;
         private readonly Func<object> contentGetter;
         private readonly Action itemsSetter;
+
         private object content;
 
         #endregion Private Fields
@@ -36,24 +37,19 @@ namespace CSVReader.Deserializers
 
         #endregion Public Constructors
 
-        #region Public Properties
-
-        public Regex HeaderRegex { get; }
-
-        #endregion Public Properties
-
         #region Public Methods
 
-        public object Get()
+        public override object Get()
         {
             itemsSetter.Invoke();
 
             var result = contentGetter.Invoke();
-            content = null;
+            content = default;
+
             return result;
         }
 
-        public void Set(IEnumerable<string> values)
+        public override void Set(IEnumerable<string> values)
         {
             if (HeaderRegex.IsMatch(values.First()))
             {
@@ -80,7 +76,7 @@ namespace CSVReader.Deserializers
 
             return () => getMethod.Invoke(
                 obj: content,
-                parameters: null);
+                parameters: default);
         }
 
         private Action GetItemsSetter(Type listType)
@@ -89,7 +85,7 @@ namespace CSVReader.Deserializers
 
             return () =>
             {
-                if (content == null)
+                if (content == default)
                 {
                     content = Activator.CreateInstance(listType);
                 }
@@ -97,9 +93,12 @@ namespace CSVReader.Deserializers
                 {
                     var item = child.Get();
 
-                    if (item != null) addMethod.Invoke(
-                        obj: content,
-                        parameters: new object[] { item });
+                    if (item != default)
+                    {
+                        addMethod.Invoke(
+                            obj: content,
+                            parameters: new object[] { item });
+                    }
                 }
             };
         }

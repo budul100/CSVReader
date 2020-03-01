@@ -14,6 +14,13 @@ namespace CSVReader.Attributes
             Format = format;
         }
 
+        public ImportField(int index, int? length, string format = default)
+        {
+            Index = index;
+            Format = format;
+            Length = length;
+        }
+
         public ImportField(string header, string format = default)
         {
             Header = header;
@@ -29,6 +36,8 @@ namespace CSVReader.Attributes
         public string Header { get; }
 
         public int Index { get; }
+
+        public int? Length { get; }
 
         #endregion Public Properties
     }
