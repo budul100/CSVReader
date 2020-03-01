@@ -54,33 +54,11 @@ namespace CSVReader
                     throw new FileNotFoundException($"The file '{path}' does not exist.");
                 }
 
-                var result = default(T);
-
-                try
-                {
-                    var lines = GetLines(path).ToArray();
-
-                    var linesIndex = 0;
-                    var linesSum = (double)lines.Count();
-
-                    var deserializer = new ValueDeserializer(typeof(T));
-
-                    foreach (var line in lines)
-                    {
-                        var values = line.Split(delimiter);
-                        deserializer.Set(values);
-
-                        progress?.Report((pathesIndex / pathesSum) + (linesIndex++ / (pathesSum * linesSum)));
-                    }
-
-                    result = deserializer.Get() as T;
-                }
-                catch (Exception ex)
-                {
-                    throw new ApplicationException(
-                        message: $"The file '{path}' cannot be red.",
-                        innerException: ex);
-                }
+                var result = Get(
+                    path: path,
+                    progress: progress,
+                    pathesIndex: pathesIndex,
+                    pathesSum: pathesSum);
 
                 yield return result;
 
@@ -109,6 +87,37 @@ namespace CSVReader
         #endregion Public Methods
 
         #region Private Methods
+
+        private static T Get(string path, IProgress<double> progress, int pathesIndex, double pathesSum)
+        {
+            try
+            {
+                var lines = GetLines(path).ToArray();
+
+                var linesIndex = 0;
+                var linesSum = (double)lines.Count();
+
+                var deserializer = new ValueDeserializer(typeof(T));
+
+                foreach (var line in lines)
+                {
+                    var values = line.Split(delimiter);
+                    deserializer.Set(values);
+
+                    progress?.Report((pathesIndex / pathesSum) + (linesIndex++ / (pathesSum * linesSum)));
+                }
+
+                var result = deserializer.Get() as T;
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException(
+                    message: $"The file '{path}' cannot be red.",
+                    innerException: ex);
+            }
+        }
 
         private static char GetDelimiter()
         {
