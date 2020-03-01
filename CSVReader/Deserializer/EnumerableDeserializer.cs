@@ -11,7 +11,7 @@ namespace CSVReader.Deserializers
         #region Private Fields
 
         private readonly ValueDeserializer child;
-        private readonly Func<object> contentGetter;
+        private readonly Func<object, object> contentGetter;
         private readonly Action itemsSetter;
 
         private object content;
@@ -43,7 +43,7 @@ namespace CSVReader.Deserializers
         {
             itemsSetter.Invoke();
 
-            var result = contentGetter.Invoke();
+            var result = contentGetter.Invoke(content);
             content = default;
 
             return result;
@@ -63,7 +63,7 @@ namespace CSVReader.Deserializers
 
         #region Private Methods
 
-        private Func<object> GetContentGetter(Type type, Type listType)
+        private Func<object, object> GetContentGetter(Type type, Type listType)
         {
             var enumerableType = type.GetContentType();
 
@@ -74,7 +74,7 @@ namespace CSVReader.Deserializers
                 ? listType.GetMethod("ToList")
                 : listType.GetMethod("ToArray");
 
-            return () => getMethod.Invoke(
+            return (content) => getMethod.Invoke(
                 obj: content,
                 parameters: default);
         }

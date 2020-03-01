@@ -1,7 +1,7 @@
 ﻿using CSVReader.Attributes;
 using IVUData.Network;
 
-namespace IVUNetworkConverter.Settings
+namespace IVUData.Network
 {
     [ImportFile(delimiter: ";")]
     internal class PatternsDefinition

@@ -34,7 +34,7 @@ namespace CSVReader.Extensions
                 ?? type.GetElementType();
         }
 
-        public static IEnumerable<FieldDefinition> GetFieldDefinitions(this Type type)
+        public static IEnumerable<ContentDefinition> GetFieldDefinitions(this Type type)
         {
             var properties = type.GetProperties()
                 .Where(p => p.GetAttribute<ImportField>() != default)
@@ -49,7 +49,7 @@ namespace CSVReader.Extensions
                 {
                     var length = property.GetAttribute<ImportField>()?.Length ?? 1;
 
-                    var result = new FieldDefinition
+                    var result = new ContentDefinition
                     {
                         Format = property.GetAttribute<ImportField>()?.Format,
                         Index = index.Value,
@@ -117,5 +117,15 @@ namespace CSVReader.Extensions
         }
 
         #endregion Public Methods
+
+        #region Private Methods
+
+        private static T GetAttribute<T>(this PropertyInfo property)
+            where T : class
+        {
+            return property.GetCustomAttribute(typeof(T)) as T;
+        }
+
+        #endregion Private Methods
     }
 }

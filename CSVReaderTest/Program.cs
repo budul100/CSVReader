@@ -8,7 +8,7 @@ namespace CSVReaderTest
 
         private static void Main(string[] args)
         {
-            var test = CSVReader.Reader<Pattern>.Get(@"..\..\..\PatternDefinitions.csv");
+            var test = CSVReader.Reader<PatternsDefinition>.Get(@"..\..\..\PatternDefinitions.csv");
         }
 
         #endregion Private Methods

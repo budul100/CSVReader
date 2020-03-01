@@ -12,7 +12,7 @@ namespace CSVReader.Models
 
         public Regex HeaderRegex { get; set; }
 
-        public Action Setter { get; set; }
+        public Action<object> Setter { get; set; }
 
         #endregion Public Properties
     }
