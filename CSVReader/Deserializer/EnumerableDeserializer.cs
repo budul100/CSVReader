@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace CSVReader.Deserializers
 {
@@ -30,9 +31,7 @@ namespace CSVReader.Deserializers
             var listType = contentType.GetListType();
 
             itemsSetter = GetItemsSetter(listType);
-            contentGetter = GetContentGetter(
-                type: type,
-                listType: listType);
+            contentGetter = type.GetContentGetter(listType);
         }
 
         #endregion Public Constructors
@@ -63,44 +62,30 @@ namespace CSVReader.Deserializers
 
         #region Private Methods
 
-        private Func<object, object> GetContentGetter(Type type, Type listType)
+        private void AddItem(Type listType, MethodInfo addMethod)
         {
-            var enumerableType = type.GetContentType();
+            if (content == default)
+            {
+                content = Activator.CreateInstance(listType);
+            }
 
-            var isList = enumerableType.IsGenericType
-                && enumerableType.GetGenericTypeDefinition() == typeof(List<>);
+            var item = child.Get();
 
-            var getMethod = isList
-                ? listType.GetMethod("ToList")
-                : listType.GetMethod("ToArray");
-
-            return (content) => getMethod.Invoke(
-                obj: content,
-                parameters: default);
+            if (item != default)
+            {
+                addMethod.Invoke(
+                    obj: content,
+                    parameters: new object[] { item });
+            }
         }
 
         private Action GetItemsSetter(Type listType)
         {
             var addMethod = listType.GetMethod("Add");
 
-            return () =>
-            {
-                if (content == default)
-                {
-                    content = Activator.CreateInstance(listType);
-                }
-                else
-                {
-                    var item = child.Get();
-
-                    if (item != default)
-                    {
-                        addMethod.Invoke(
-                            obj: content,
-                            parameters: new object[] { item });
-                    }
-                }
-            };
+            return () => AddItem(
+                listType: listType,
+                addMethod: addMethod);
         }
 
         #endregion Private Methods

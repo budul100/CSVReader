@@ -2,12 +2,12 @@
 
 namespace CSVReader.Attributes
 {
-    public abstract class ImportHeader
+    public abstract class ImportHeaderAttribute
         : Attribute
     {
         #region Protected Constructors
 
-        protected ImportHeader(string headerRegex)
+        protected ImportHeaderAttribute(string headerRegex)
         {
             HeaderRegex = headerRegex;
         }

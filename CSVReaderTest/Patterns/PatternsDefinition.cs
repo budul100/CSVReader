@@ -1,5 +1,4 @@
 ﻿using CSVReader.Attributes;
-using IVUData.Network;
 
 namespace IVUData.Network
 {

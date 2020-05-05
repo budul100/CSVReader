@@ -84,18 +84,15 @@ namespace CSVReader.Deserializers
                                 arg2: values.ElementAt(index));
                         }
                     }
+
+                    currentChild = default;
                 }
                 else
                 {
                     if (content == default)
                         content = contentGetter.Invoke();
 
-                    if (anyRegex &&
-                        !(currentChild?.HeaderRegex?.IsMatch(header) ?? false))
-                    {
-                        currentChild = childs
-                            .FirstOrDefault(c => c.HeaderRegex?.IsMatch(header) ?? true);
-                    }
+                    currentChild = GetChild(header);
 
                     currentChild?.Deserializer.Set(values);
                 }
@@ -103,5 +100,24 @@ namespace CSVReader.Deserializers
         }
 
         #endregion Public Methods
+
+        #region Private Methods
+
+        private ChildDefinition GetChild(string header)
+        {
+            var result = currentChild;
+
+            if (result == default
+                || (anyRegex && childs.Any(c => c?.HeaderRegex.IsMatch(header) ?? false)))
+            {
+                result = childs?
+                    .OrderByDescending(c => c.HeaderRegex?.IsMatch(header) ?? false)
+                    .FirstOrDefault();
+            }
+
+            return result;
+        }
+
+        #endregion Private Methods
     }
 }

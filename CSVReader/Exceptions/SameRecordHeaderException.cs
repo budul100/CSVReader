@@ -17,6 +17,14 @@ namespace CSVReader.Exceptions
 
         public string Header { get; }
 
+        public SameRecordHeaderException()
+        {
+        }
+
+        public SameRecordHeaderException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
         #endregion Public Properties
     }
 }

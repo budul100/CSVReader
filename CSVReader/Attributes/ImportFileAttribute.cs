@@ -3,25 +3,25 @@
 namespace CSVReader.Attributes
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class ImportFile
-        : ImportHeader
+    public sealed class ImportFileAttribute
+        : ImportHeaderAttribute
     {
         #region Public Constructors
 
-        public ImportFile(string headerRegex, string delimiter = "\t")
+        public ImportFileAttribute(string headerRegex, string delimiter = "\t")
             : base(headerRegex)
         {
             Delimiter = delimiter;
         }
 
-        public ImportFile(string headerRegex, string trimRegex, string delimiter = "\t")
+        public ImportFileAttribute(string headerRegex, string trimRegex, string delimiter = "\t")
             : base(headerRegex)
         {
             TrimRegex = trimRegex;
             Delimiter = delimiter;
         }
 
-        public ImportFile(string delimiter = "\t")
+        public ImportFileAttribute(string delimiter = "\t")
             : this(default, delimiter)
         {
             Delimiter = delimiter;

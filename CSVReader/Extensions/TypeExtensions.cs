@@ -22,10 +22,27 @@ namespace CSVReader.Extensions
         public static IEnumerable<PropertyInfo> GetChildProperties(this Type type)
         {
             var result = type.GetProperties()
+                .Where(p => p.PropertyType.GetContentType()?.GetAttribute<ImportRecordAttribute>() != default)
                 .Where(p => p.PropertyType.IsClassType()
                     || p.PropertyType.IsClassEnumerable()).ToArray();
 
             return result;
+        }
+
+        public static Func<object, object> GetContentGetter(this Type type, Type listType)
+        {
+            var enumerableType = type.GetContentType();
+
+            var isList = enumerableType.IsGenericType
+                && enumerableType.GetGenericTypeDefinition() == typeof(List<>);
+
+            var getMethod = isList
+                ? listType.GetMethod("ToList")
+                : listType.GetMethod("ToArray");
+
+            return (content) => GetContent(
+                content: content,
+                getMethod: getMethod);
         }
 
         public static Type GetContentType(this Type type)
@@ -37,21 +54,21 @@ namespace CSVReader.Extensions
         public static IEnumerable<ContentDefinition> GetFieldDefinitions(this Type type)
         {
             var properties = type.GetProperties()
-                .Where(p => p.GetAttribute<ImportField>() != default)
+                .Where(p => p.GetAttribute<ImportFieldAttribute>() != default)
                 .Where(p => !p.PropertyType.IsClassType())
                 .Where(p => !p.PropertyType.IsClassEnumerable()).ToArray();
 
             foreach (var property in properties)
             {
-                var index = property.GetAttribute<ImportField>()?.Index;
+                var index = property.GetAttribute<ImportFieldAttribute>()?.Index;
 
                 if (index.HasValue)
                 {
-                    var length = property.GetAttribute<ImportField>()?.Length ?? 1;
+                    var length = property.GetAttribute<ImportFieldAttribute>()?.Length ?? 1;
 
                     var result = new ContentDefinition
                     {
-                        Format = property.GetAttribute<ImportField>()?.Format,
+                        Format = property.GetAttribute<ImportFieldAttribute>()?.Format,
                         Index = index.Value,
                         Length = length,
                         Property = property,
@@ -65,7 +82,7 @@ namespace CSVReader.Extensions
 
         public static Regex GetHeaderRegex(this Type type)
         {
-            var headerRegex = type.GetAttribute<ImportHeader>()?.HeaderRegex;
+            var headerRegex = type.GetAttribute<ImportHeaderAttribute>()?.HeaderRegex;
 
             return string.IsNullOrWhiteSpace(headerRegex)
                 ? default
@@ -124,6 +141,15 @@ namespace CSVReader.Extensions
             where T : class
         {
             return property.GetCustomAttribute(typeof(T)) as T;
+        }
+
+        private static object GetContent(object content, MethodInfo getMethod)
+        {
+            var result = getMethod.Invoke(
+                obj: content,
+                parameters: default);
+
+            return result;
         }
 
         #endregion Private Methods

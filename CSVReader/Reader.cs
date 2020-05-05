@@ -83,7 +83,7 @@ namespace CSVReader
                 var lines = GetLines(path).ToArray();
 
                 var linesIndex = 0;
-                var linesSum = (double)lines.Count();
+                var linesSum = (double)lines.Length;
 
                 var delimiter = GetDelimiter().ToArray();
 
@@ -111,7 +111,7 @@ namespace CSVReader
 
         private static IEnumerable<char> GetDelimiter()
         {
-            var attribute = typeof(T).GetAttribute<ImportFile>();
+            var attribute = typeof(T).GetAttribute<ImportFileAttribute>();
 
             return attribute?.Delimiter?.ToCharArray()
                 ?? Enumerable.Empty<char>();
@@ -130,7 +130,8 @@ namespace CSVReader
 
             var result = text.Split(
                 separator: newLines,
-                options: StringSplitOptions.None);
+                options: StringSplitOptions.None)
+                .Where(t => !string.IsNullOrEmpty(t)).ToArray();
 
             return result;
         }
@@ -139,7 +140,7 @@ namespace CSVReader
         {
             var result = default(Regex);
 
-            var attribute = typeof(T).GetAttribute<ImportFile>();
+            var attribute = typeof(T).GetAttribute<ImportFileAttribute>();
 
             if (attribute != null)
             {
