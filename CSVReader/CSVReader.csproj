@@ -11,8 +11,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/budul100/CSVReader</RepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageTags>String, String extensions, String helpers</PackageTags>
-    <Description>Multiple extension methods to adjust or manipulate strings</Description>
+    <PackageTags>Deserialization, Deserializer, CSV</PackageTags>
+    <Description>Deserializer for values from CSV files</Description>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
