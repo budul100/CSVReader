@@ -14,7 +14,7 @@ namespace CSVReaderTests
         public void TestLastInfinite()
         {
             var reader = new Reader();
-            reader.Initialize<RouteDefinition>(",");
+            reader.InitializeByAttributes<RouteDefinition>(",");
 
             var result = reader.Get<RouteDefinition>(@"..\..\..\ExampleLastInfinite\_Example.csv").ToArray();
 
@@ -26,7 +26,7 @@ namespace CSVReaderTests
         public void TestRecursive()
         {
             var reader = new Reader();
-            reader.Initialize<Offer>(",");
+            reader.InitializeByAttributes<Offer>(",");
 
             var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
 

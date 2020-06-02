@@ -117,7 +117,7 @@ namespace CSVReader
             }
         }
 
-        public void Initialize(Type type, string delimiters = ",", bool trimValues = true)
+        public void InitializeByAttributes(Type type, string delimiters = ",", bool trimValues = true)
         {
             baseFactory = new RecordFactory(
                 type: type,
@@ -135,9 +135,9 @@ namespace CSVReader
             }
         }
 
-        public void Initialize<T>(string delimiters = ",", bool trimValues = true)
+        public void InitializeByAttributes<T>(string delimiters = ",", bool trimValues = true)
         {
-            Initialize(
+            InitializeByAttributes(
                 type: typeof(T),
                 delimiters: delimiters,
                 trimValues: trimValues);
