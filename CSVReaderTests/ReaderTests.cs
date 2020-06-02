@@ -27,13 +27,13 @@ namespace CSVReaderTests
         public void TestPIFImport()
         {
             var reader = new Reader();
-            reader.InitializeByAttributes<PIF>(",");
+            reader.InitializeByAttributes<PIF>();
 
-            var result = reader.Get<PIF>(@"..\..\..\ExamplePIF\_Example.txt").ToArray();
+            var result = reader.Get<PIF>(@"..\..\..\ExamplePIF\_Example.txt").FirstOrDefault();
 
-            Assert.IsTrue(result.First().Locations.Count() == 10969);
-            Assert.IsTrue(result.First().NetworkLinks.Count() == 543);
-            Assert.IsTrue(result.First().TimingLinks.Count() == 16153);
+            Assert.IsTrue(result.Locations.Count() == 10969);
+            Assert.IsTrue(result.NetworkLinks.Count() == 543);
+            Assert.IsTrue(result.TimingLinks.Count() == 16153);
         }
 
         [Test]
@@ -42,10 +42,9 @@ namespace CSVReaderTests
             var reader = new Reader();
             reader.InitializeByAttributes<Offer>(",");
 
-            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
+            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").FirstOrDefault();
 
-            Assert.IsTrue(result.Count() == 1);
-            Assert.IsTrue(result.First().Trains.Count() == 5);
+            Assert.IsTrue(result.Trains.Count() == 5);
         }
 
         #endregion Public Methods
