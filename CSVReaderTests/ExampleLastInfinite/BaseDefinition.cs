@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace CSVReaderTests.ExampleLastInfinite
 {
     [Set(delimiters: ";", lastValueInfinite: true)]
-    public class PatternDefinition
+    public class BaseDefinition
     {
         #region Public Properties
 
@@ -12,13 +12,15 @@ namespace CSVReaderTests.ExampleLastInfinite
         public string Abbreviation { get; set; }
 
         [Field(3)]
-        public IEnumerable<string> Anchors { get; set; }
+        public virtual IEnumerable<string> Anchors { get; set; }
 
         [Field(1)]
         public string Description { get; set; }
 
         [Field(2)]
-        public int Index { get; set; }
+        public bool IncludingReverse { get; set; }
+
+        public bool IsReverse { get; set; }
 
         #endregion Public Properties
     }

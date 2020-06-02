@@ -14,11 +14,12 @@ namespace CSVReaderTests
         public void TestLastInfinite()
         {
             var reader = new Reader();
-            reader.Initialize<PatternDefinition>(",");
+            reader.Initialize<RouteDefinition>(",");
 
-            var result = reader.Get(@"..\..\..\ExampleLastInfinite\_Example.csv").ToArray();
+            var result = reader.Get<RouteDefinition>(@"..\..\..\ExampleLastInfinite\_Example.csv").ToArray();
 
             Assert.IsTrue(result.Count() == 7);
+            Assert.IsTrue(result.First().Anchors.Count() == 11);
         }
 
         [Test]
@@ -27,13 +28,10 @@ namespace CSVReaderTests
             var reader = new Reader();
             reader.Initialize<Offer>(",");
 
-            var result = reader.Get(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
+            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
 
             Assert.IsTrue(result.Count() == 1);
-
-            var trains = (result.First() as Offer).Trains;
-
-            Assert.IsTrue(trains.Count() == 5);
+            Assert.IsTrue(result.First().Trains.Count() == 5);
         }
 
         #endregion Public Methods
