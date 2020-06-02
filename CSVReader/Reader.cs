@@ -1,39 +1,73 @@
 ﻿using CSVReader.Attributes;
-using CSVReader.Deserializers;
 using CSVReader.Extensions;
+using CSVReader.Factories;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace CSVReader
 {
-    public static class Reader<T>
-        where T : class
+    public class Reader
     {
         #region Private Fields
 
-        private static readonly string[] newLines = new[] { "\r\n", "\r", "\n" };
+        private static readonly char[] lineSeparators = new[] { '\r', '\n' };
+
+        private RecordFactory baseFactory;
+        private Regex trimRegex;
+        private char[] valueSeparators;
 
         #endregion Private Fields
 
         #region Public Methods
 
-        public static T Get(string path, IProgress<double> progress = default)
+        public IEnumerable<object> Get(string path, IProgress<double> progress = default)
         {
             var pathes = new string[] { path };
 
-            return Get(
+            var result = Get(
                 pathes: pathes,
-                progress: progress).SingleOrDefault();
+                progress: progress);
+
+            return result;
         }
 
-        public static IEnumerable<T> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
+        public IEnumerable<T> Get<T>(string path, IProgress<double> progress = default)
+            where T : class
         {
+            var contents = Get(
+                path: path,
+                progress: progress);
+
+            foreach (var content in contents)
+            {
+                yield return content as T;
+            }
+        }
+
+        public IEnumerable<T> Get<T>(IEnumerable<string> pathes, IProgress<double> progress = default)
+            where T : class
+        {
+            var contents = Get(
+                pathes: pathes,
+                progress: progress);
+
+            foreach (var content in contents)
+            {
+                yield return content as T;
+            }
+        }
+
+        public IEnumerable<object> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
+        {
+            if (baseFactory == default)
+            {
+                throw new ApplicationException("The reader must be initialized at first.");
+            }
+
             var pathesIndex = 0;
-            var pathesSum = (double)pathes.Count();
 
             foreach (var path in pathes)
             {
@@ -42,111 +76,123 @@ namespace CSVReader
                     throw new FileNotFoundException($"The file '{path}' does not exist.");
                 }
 
-                var result = Get(
-                    path: path,
+                var progressSetter = GetProgessSetter(
                     progress: progress,
                     pathesIndex: pathesIndex,
-                    pathesSum: pathesSum);
+                    pathesSum: pathes.Count());
 
-                yield return result;
+                var lines = GetLines(
+                    path: path,
+                    trimRegex: trimRegex).ToArray();
+
+                var linesIndex = 0;
+
+                foreach (var line in lines)
+                {
+                    try
+                    {
+                        var contents = line
+                            .Split(valueSeparators).ToArray();
+
+                        baseFactory.ContentsSetter.Invoke(contents);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new ApplicationException(
+                            message: $"The file '{path}' cannot be red.",
+                            innerException: ex);
+                    }
+
+                    if (baseFactory.IsNewRecord)
+                        yield return baseFactory.Record;
+
+                    progressSetter?.Invoke(
+                        arg1: linesIndex,
+                        arg2: lines.Count());
+                }
+
+                baseFactory.Dispose();
 
                 pathesIndex++;
             }
         }
 
-        public static async Task<T> GetAsync(string path, IProgress<double> progress = default)
+        public void Initialize(Type type, string delimiters = ",", bool trimValues = true)
         {
-            var result = await Task.FromResult(Get(
-                path: path,
-                progress: progress));
+            baseFactory = new RecordFactory(
+                type: type,
+                trimValues: trimValues);
 
-            return result;
+            if (baseFactory != default)
+            {
+                baseFactory.InitializeByAttributes();
+                baseFactory.CompleteInitialization();
+
+                trimRegex = GetTrimRegex(type);
+                valueSeparators = GetDelimiters(
+                    type: type,
+                    given: delimiters).ToArray();
+            }
         }
 
-        public static async Task<IEnumerable<T>> GetAsync(IEnumerable<string> pathes, IProgress<double> progress = default)
+        public void Initialize<T>(string delimiters = ",", bool trimValues = true)
         {
-            var result = await Task.FromResult(Get(
-                pathes: pathes,
-                progress: progress).ToArray());
-
-            return result;
+            Initialize(
+                type: typeof(T),
+                delimiters: delimiters,
+                trimValues: trimValues);
         }
 
         #endregion Public Methods
 
         #region Private Methods
 
-        private static T Get(string path, IProgress<double> progress, int pathesIndex, double pathesSum)
+        private IEnumerable<char> GetDelimiters(Type type, string given)
         {
-            try
-            {
-                var lines = GetLines(path).ToArray();
+            var delimiters = type.GetAttribute<SetAttribute>()?.Delimiters
+                ?? given;
 
-                var linesIndex = 0;
-                var linesSum = (double)lines.Length;
-
-                var delimiter = GetDelimiter().ToArray();
-
-                var deserializer = new ValueDeserializer(typeof(T));
-
-                foreach (var line in lines)
-                {
-                    var values = line.Split(delimiter);
-                    deserializer.Set(values);
-
-                    progress?.Report((pathesIndex / pathesSum) + (linesIndex++ / (pathesSum * linesSum)));
-                }
-
-                var result = deserializer.Get() as T;
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException(
-                    message: $"The file '{path}' cannot be red.",
-                    innerException: ex);
-            }
-        }
-
-        private static IEnumerable<char> GetDelimiter()
-        {
-            var attribute = typeof(T).GetAttribute<ImportFileAttribute>();
-
-            return attribute?.Delimiter?.ToCharArray()
+            var result = delimiters?.ToCharArray()
                 ?? Enumerable.Empty<char>();
+
+            return result;
         }
 
-        private static IEnumerable<string> GetLines(string path)
+        private IEnumerable<string> GetLines(string path, Regex trimRegex)
         {
             var text = File.ReadAllText(path);
-
-            var trimRegex = GetTrimRegex();
 
             if (trimRegex?.IsMatch(text) ?? false)
             {
                 text = trimRegex.Match(text).Value;
             }
 
-            var result = text.Split(
-                separator: newLines,
-                options: StringSplitOptions.None)
+            var result = text.Split(lineSeparators)
                 .Where(t => !string.IsNullOrEmpty(t)).ToArray();
 
             return result;
         }
 
-        private static Regex GetTrimRegex()
+        private Action<int, int> GetProgessSetter(IProgress<double> progress, int pathesIndex, int pathesSum)
+        {
+            var pathesSumDouble = (double)pathesSum;
+            var pathesProgess = pathesIndex / pathesSumDouble;
+
+            return (linesIndex, linesSum) => progress?.Report(pathesProgess + (linesIndex++ / (pathesSumDouble * linesSum)));
+        }
+
+        private Regex GetTrimRegex(Type type)
         {
             var result = default(Regex);
 
-            var attribute = typeof(T).GetAttribute<ImportFileAttribute>();
+            var fileAttribute = type.GetAttribute<SetAttribute>();
 
-            if (attribute != null)
+            if (fileAttribute != default
+                && !string.IsNullOrWhiteSpace(fileAttribute.TrimRegex))
             {
-                result = !string.IsNullOrWhiteSpace(attribute.TrimRegex)
-                    ? new Regex($"{attribute.TrimRegex}", RegexOptions.Singleline)
-                    : null;
+                result = new Regex(
+                    pattern: $"{fileAttribute.TrimRegex}",
+                    options: RegexOptions.Singleline);
             }
 
             return result;

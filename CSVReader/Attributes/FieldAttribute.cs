@@ -3,41 +3,36 @@
 namespace CSVReader.Attributes
 {
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
-    public sealed class ImportFieldAttribute
+    public sealed class FieldAttribute
         : Attribute
     {
         #region Public Constructors
 
-        public ImportFieldAttribute(int index, string format = default)
+        public FieldAttribute(int index, int length = 1)
         {
-            Index = index;
-            Format = format;
-        }
+            if (length < 1)
+                throw new ArgumentException(
+                    message: $"Length must be greater than 0",
+                    paramName: nameof(length));
 
-        public ImportFieldAttribute(int index, int length, string format = default)
-        {
             Index = index;
-            Format = format;
             Length = length;
         }
 
-        public ImportFieldAttribute(string header, string format = default)
+        public FieldAttribute(string header)
         {
             Header = header;
-            Format = format;
         }
 
         #endregion Public Constructors
 
         #region Public Properties
 
-        public string Format { get; }
-
         public string Header { get; }
 
         public int Index { get; }
 
-        public int? Length { get; }
+        public int Length { get; } = 1;
 
         #endregion Public Properties
     }
