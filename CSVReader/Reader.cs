@@ -94,7 +94,7 @@ namespace CSVReader
                         var contents = line
                             .Split(valueSeparators).ToArray();
 
-                        baseFactory.ContentsSetter.Invoke(contents);
+                        baseFactory.SetContents(contents);
                     }
                     catch (Exception ex)
                     {

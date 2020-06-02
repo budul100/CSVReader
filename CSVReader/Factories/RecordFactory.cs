@@ -19,7 +19,9 @@ namespace CSVReader.Factories
         private readonly IList<ChildFacade> childFacades = new List<ChildFacade>();
         private readonly IList<Action> condenseSetters = new List<Action>();
         private readonly IDictionary<int, Action<string, bool>> fieldSetters = new Dictionary<int, Action<string, bool>>();
+
         private readonly string headerRegex;
+        private readonly bool lastValueInfinite;
         private readonly Type recordType;
         private readonly bool trimValues;
 
@@ -30,23 +32,19 @@ namespace CSVReader.Factories
 
         #region Public Constructors
 
-        public RecordFactory(bool trimValues, Type type)
+        public RecordFactory(Type type, bool trimValues)
         {
             this.trimValues = trimValues;
             recordType = type.GetContentType();
 
             var typeAttribute = recordType.GetAttribute<TypeAttribute>();
-            var isLastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
-
+            lastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
             headerRegex = typeAttribute?.HeaderRegex;
-            ContentsSetter = (values) => SetContents(recordType, isLastValueInfinite, values);
         }
 
         #endregion Public Constructors
 
         #region Public Properties
-
-        public Action<IEnumerable<string>> ContentsSetter { get; private set; }
 
         public HashSet<string> HeaderRegexes { get; private set; } = new HashSet<string>();
 
@@ -93,41 +91,54 @@ namespace CSVReader.Factories
 
         public void InitializeByAttributes()
         {
-            var fieldProperties = recordType.GetProperties()
-                .Where(p => p.GetAttribute<FieldAttribute>() != default)
-                .Where(p => !p.PropertyType.GetContentType().IsClassType())
-                .OrderBy(p => p.GetAttribute<FieldAttribute>().Index).ToArray();
+            var fieldProperties = recordType.GetFieldProperties();
 
-            if (fieldProperties.Any())
+            foreach (var fieldProperty in fieldProperties)
             {
-                var typeAttribute = recordType.GetAttribute<TypeAttribute>();
-                var isLastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
+                var fieldAttribute = fieldProperty.GetAttribute<FieldAttribute>();
 
-                foreach (var fieldProperty in fieldProperties)
-                {
-                    var fieldAttribute = fieldProperty.GetAttribute<FieldAttribute>();
+                var isLastInfinite = lastValueInfinite
+                    && fieldProperty == fieldProperties.Last();
 
-                    var isLastInfinite = (isLastValueInfinite)
-                        && fieldProperty == fieldProperties.Last();
-
-                    CreateFieldSetter(
-                        property: fieldProperty,
-                        fieldIndex: fieldAttribute.Index,
-                        fieldLength: fieldAttribute.Length,
-                        isLastInfinite: isLastInfinite);
-                }
+                CreateFieldSetter(
+                    property: fieldProperty,
+                    fieldIndex: fieldAttribute.Index,
+                    fieldLength: fieldAttribute.Length,
+                    isLastInfinite: isLastInfinite);
             }
 
-            var itemProperties = recordType.GetProperties()
-                .Where(p => p.PropertyType.GetContentType().IsClassType())
-                .Where(p => p.PropertyType.GetContentType().GetAttribute<TypeAttribute>() != default).ToArray();
+            var childProperties = recordType.GetChildProperties();
 
-            if (itemProperties.Any())
+            foreach (var itemProperty in childProperties)
             {
-                foreach (var itemProperty in itemProperties)
+                var childFacade = GetChildFacade(itemProperty);
+                childFacade.Factory.InitializeByAttributes();
+            }
+        }
+
+        public void SetContents(IEnumerable<string> contents)
+        {
+            IsNewRecord = false;
+
+            if (contents?.Any() ?? false)
+            {
+                if (contents.First().IsMatchOrEmptyPattern(headerRegex))
                 {
-                    var childFacade = GetChildFacade(itemProperty);
-                    childFacade.Factory.InitializeByAttributes();
+                    RenewRecord();
+                }
+
+                if (contents.First().IsMatchOrEmptyPattern(headerRegex)
+                    && fieldSetters.Any())
+                {
+                    SetFields(contents);
+                }
+                else if (childFacades.Any())
+                {
+                    var relevantChild = childFacades
+                        .Where(c => c.Factory.HeaderRegexes.Any(r => contents.First().IsMatchOrEmptyPattern(r)))
+                        .SingleOrDefault();
+
+                    relevantChild?.ContentsSetter.Invoke(contents);
                 }
             }
         }
@@ -138,7 +149,7 @@ namespace CSVReader.Factories
 
         private void AddChild(IList itemList, RecordFactory childFactory, IEnumerable<string> values)
         {
-            childFactory.ContentsSetter?.Invoke(values);
+            childFactory.SetContents(values);
 
             if (childFactory.IsNewRecord)
             {
@@ -305,6 +316,14 @@ namespace CSVReader.Factories
             fieldListSetter = () => CondenseFieldList(property);
         }
 
+        private void RenewRecord()
+        {
+            CondenseRecord();
+
+            Record = Activator.CreateInstance(recordType);
+            IsNewRecord = true;
+        }
+
         private void SetChild(PropertyInfo property, RecordFactory childFactory, IEnumerable<string> values)
         {
             if (property.GetValue(Record) != default)
@@ -312,7 +331,7 @@ namespace CSVReader.Factories
                 throw new PropertyAlreadySetException($"The property {property.Name} can only be set once.");
             }
 
-            childFactory.ContentsSetter.Invoke(values);
+            childFactory.SetContents(values);
 
             if (childFactory.IsNewRecord)
             {
@@ -322,52 +341,30 @@ namespace CSVReader.Factories
             }
         }
 
-        private void SetContents(Type type, bool lastValueInfinite, IEnumerable<string> contents)
+        private void SetFields(IEnumerable<string> contents)
         {
-            IsNewRecord = false;
+            var setterIndex = 0;
+            var lastSetterIndex = fieldSetters.Last().Key;
 
-            if (contents?.Any() ?? false)
+            foreach (var value in contents)
             {
-                if (fieldSetters.Any()
-                    && contents.First().IsMatchOrEmptyPattern(headerRegex))
+                var isLastValue = value == contents.Last();
+
+                if (fieldSetters.ContainsKey(setterIndex))
                 {
-                    CondenseRecord();
-
-                    Record = Activator.CreateInstance(type);
-                    IsNewRecord = true;
-
-                    var setterIndex = 0;
-                    var lastSetterIndex = fieldSetters.Last().Key;
-
-                    foreach (var value in contents)
-                    {
-                        var isLastValue = value == contents.Last();
-
-                        if (fieldSetters.ContainsKey(setterIndex))
-                        {
-                            fieldSetters[setterIndex].Invoke(
-                                arg1: value,
-                                arg2: isLastValue);
-                        }
-                        else if (lastValueInfinite
-                            && setterIndex > lastSetterIndex)
-                        {
-                            fieldSetters[lastSetterIndex].Invoke(
-                                arg1: value,
-                                arg2: isLastValue);
-                        }
-
-                        setterIndex++;
-                    }
+                    fieldSetters[setterIndex].Invoke(
+                        arg1: value,
+                        arg2: isLastValue);
                 }
-                else if (childFacades.Any())
+                else if (lastValueInfinite
+                    && setterIndex > lastSetterIndex)
                 {
-                    var relevantChild = childFacades
-                        .Where(c => c.Factory.HeaderRegexes.Any(r => contents.First().IsMatchOrEmptyPattern(r)))
-                        .SingleOrDefault();
-
-                    relevantChild?.ContentsSetter.Invoke(contents);
+                    fieldSetters[lastSetterIndex].Invoke(
+                        arg1: value,
+                        arg2: isLastValue);
                 }
+
+                setterIndex++;
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CSVReader.Attributes;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,11 +26,30 @@ namespace CSVReader.Extensions
             return type.GetCustomAttribute(typeof(T)) as T;
         }
 
+        public static IEnumerable<PropertyInfo> GetChildProperties(this Type type)
+        {
+            var result = type.GetProperties()
+                .Where(p => p.PropertyType.GetContentType().IsClassType())
+                .Where(p => p.PropertyType.GetContentType().GetAttribute<TypeAttribute>() != default).ToArray();
+
+            return result;
+        }
+
         public static Type GetContentType(this Type type)
         {
             return type.GetGenericArguments().FirstOrDefault()
                 ?? type.GetElementType()
                 ?? type;
+        }
+
+        public static IEnumerable<PropertyInfo> GetFieldProperties(this Type type)
+        {
+            var result = type.GetProperties()
+                .Where(p => p.GetAttribute<FieldAttribute>() != default)
+                .Where(p => !p.PropertyType.GetContentType().IsClassType())
+                .OrderBy(p => p.GetAttribute<FieldAttribute>().Index).ToArray();
+
+            return result;
         }
 
         public static bool IsClassType(this Type type)
