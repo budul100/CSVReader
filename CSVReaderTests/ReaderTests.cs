@@ -14,8 +14,8 @@ namespace CSVReaderTests
         [Test]
         public void TestLastInfinite()
         {
-            var reader = new Reader();
-            reader.InitializeByAttributes<RouteDefinition>(",");
+            var reader = new Reader(",");
+            reader.Initialize<RouteDefinition>();
 
             var result = reader.Get<RouteDefinition>(@"..\..\..\ExampleLastInfinite\_Example.csv").ToArray();
 
@@ -27,7 +27,7 @@ namespace CSVReaderTests
         public void TestPIFImport()
         {
             var reader = new Reader();
-            reader.InitializeByAttributes<PIF>();
+            reader.Initialize<PIF>();
 
             var result = reader.Get<PIF>(@"..\..\..\ExamplePIF\_Example.txt").FirstOrDefault();
 
@@ -39,12 +39,14 @@ namespace CSVReaderTests
         [Test]
         public void TestRecursive()
         {
-            var reader = new Reader();
-            reader.InitializeByAttributes<Offer>(",");
+            var reader = new Reader(",");
+            reader.Initialize<Offer>();
 
-            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").FirstOrDefault();
+            var result1 = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").FirstOrDefault();
+            var result2 = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").FirstOrDefault();
 
-            Assert.IsTrue(result.Trains.Count() == 5);
+            Assert.IsTrue(result1.Trains.Count() == 5);
+            Assert.IsTrue(result2.Trains.Count() == 5);
         }
 
         #endregion Public Methods

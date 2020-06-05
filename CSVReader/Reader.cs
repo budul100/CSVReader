@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace CSVReader
 {
@@ -14,12 +15,30 @@ namespace CSVReader
         #region Private Fields
 
         private static readonly char[] lineSeparators = new[] { '\r', '\n' };
+        private readonly string delimiters;
+        private readonly bool trimValues;
 
-        private RecordFactory baseFactory;
+        private Func<RecordFactory> basefactoryGetter;
         private Regex trimRegex;
         private char[] valueSeparators;
 
         #endregion Private Fields
+
+        #region Public Constructors
+
+        public Reader(string delimiters = ",", bool trimValues = true)
+        {
+            this.delimiters = delimiters;
+            this.trimValues = trimValues;
+        }
+
+        public Reader(Type type, string delimiters = ",", bool trimValues = true)
+            : this(delimiters, trimValues)
+        {
+            Initialize(type);
+        }
+
+        #endregion Public Constructors
 
         #region Public Methods
 
@@ -69,30 +88,47 @@ namespace CSVReader
             return records;
         }
 
-        public void InitializeByAttributes(Type type, string delimiters = ",", bool trimValues = true)
+        public async Task<IEnumerable<T>> GetAsync<T>(string path, IProgress<double> progress = default)
+            where T : class
         {
-            baseFactory = new RecordFactory(
-                type: type,
-                trimValues: trimValues);
+            var result = await Task.FromResult(Get<T>(
+                path: path,
+                progress: progress));
 
-            if (baseFactory != default)
-            {
-                baseFactory.InitializeByAttributes();
-                baseFactory.CompleteInitialization();
-
-                trimRegex = GetTrimRegex(type);
-                valueSeparators = GetDelimiters(
-                    type: type,
-                    given: delimiters).ToArray();
-            }
+            return result;
         }
 
-        public void InitializeByAttributes<T>(string delimiters = ",", bool trimValues = true)
+        public async Task<IEnumerable<T>> GetAsync<T>(IEnumerable<string> pathes, IProgress<double> progress = default)
+            where T : class
         {
-            InitializeByAttributes(
-                type: typeof(T),
-                delimiters: delimiters,
-                trimValues: trimValues);
+            var result = await Task.FromResult(Get<T>(
+                pathes: pathes,
+                progress: progress).ToArray());
+
+            return result;
+        }
+
+        public async Task<IEnumerable<object>> GetAsync(string path, IProgress<double> progress = default)
+        {
+            var result = await Task.FromResult(Get(
+                path: path,
+                progress: progress));
+
+            return result;
+        }
+
+        public async Task<IEnumerable<object>> GetAsync(IEnumerable<string> pathes, IProgress<double> progress = default)
+        {
+            var result = await Task.FromResult(Get(
+                pathes: pathes,
+                progress: progress).ToArray());
+
+            return result;
+        }
+
+        public void Initialize<T>()
+        {
+            Initialize(typeof(T));
         }
 
         #endregion Public Methods
@@ -106,6 +142,21 @@ namespace CSVReader
 
             var result = delimiters?.ToCharArray()
                 ?? Enumerable.Empty<char>();
+
+            return result;
+        }
+
+        private RecordFactory GetFactoryByAttributes(Type type)
+        {
+            var result = new RecordFactory(
+                type: type,
+                trimValues: trimValues);
+
+            if (result != default)
+            {
+                result.InitializeByAttributes();
+                result.CompleteInitialization();
+            }
 
             return result;
         }
@@ -135,7 +186,7 @@ namespace CSVReader
 
         private IEnumerable<object> GetRecords(IEnumerable<string> pathes, IProgress<double> progress = default)
         {
-            if (baseFactory == default)
+            if (basefactoryGetter == default)
             {
                 throw new ApplicationException("The reader must be initialized at first.");
             }
@@ -158,33 +209,34 @@ namespace CSVReader
                     path: path,
                     trimRegex: trimRegex).ToArray();
 
-                var linesIndex = 0;
-
-                foreach (var line in lines)
+                using (var baseFactory = basefactoryGetter())
                 {
-                    try
+                    var linesIndex = 0;
+
+                    foreach (var line in lines)
                     {
-                        var contents = line
-                            .Split(valueSeparators).ToArray();
+                        try
+                        {
+                            var contents = line
+                                .Split(valueSeparators).ToArray();
 
-                        baseFactory.SetContents(contents);
+                            baseFactory.SetContents(contents);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ApplicationException(
+                                message: $"The file '{path}' cannot be red.",
+                                innerException: ex);
+                        }
+
+                        if (baseFactory.IsNewRecord)
+                            yield return baseFactory.Record;
+
+                        progressSetter?.Invoke(
+                            arg1: linesIndex++,
+                            arg2: lines.Count());
                     }
-                    catch (Exception ex)
-                    {
-                        throw new ApplicationException(
-                            message: $"The file '{path}' cannot be red.",
-                            innerException: ex);
-                    }
-
-                    if (baseFactory.IsNewRecord)
-                        yield return baseFactory.Record;
-
-                    progressSetter?.Invoke(
-                        arg1: linesIndex,
-                        arg2: lines.Count());
                 }
-
-                baseFactory.Dispose();
 
                 pathesIndex++;
             }
@@ -205,6 +257,16 @@ namespace CSVReader
             }
 
             return result;
+        }
+
+        private void Initialize(Type type)
+        {
+            basefactoryGetter = () => GetFactoryByAttributes(type);
+
+            trimRegex = GetTrimRegex(type);
+            valueSeparators = GetDelimiters(
+                type: type,
+                given: delimiters).ToArray();
         }
 
         #endregion Private Methods
