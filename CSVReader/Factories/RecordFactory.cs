@@ -35,9 +35,11 @@ namespace CSVReader.Factories
         public RecordFactory(Type type, bool trimValues)
         {
             this.trimValues = trimValues;
+
             recordType = type.GetContentType();
 
             var typeAttribute = recordType.GetAttribute<TypeAttribute>();
+
             lastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
             headerRegex = typeAttribute?.HeaderRegex;
         }
@@ -198,11 +200,11 @@ namespace CSVReader.Factories
             }
         }
 
-        private void CondenseChildList(PropertyInfo property, Type type, IList itemList)
+        private void CondenseChildList(PropertyInfo property, Type itemType, IList itemList)
         {
             if (Record != default)
             {
-                var getMethod = type.IsListType()
+                var getMethod = itemType.IsListType()
                     ? itemList.GetType().GetMethod("ToList")
                     : itemList.GetType().GetMethod("ToArray");
 
@@ -213,6 +215,8 @@ namespace CSVReader.Factories
                 property.SetValue(
                     obj: Record,
                     value: value);
+
+                itemList.Clear();
             }
         }
 
