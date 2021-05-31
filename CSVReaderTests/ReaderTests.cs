@@ -12,6 +12,17 @@ namespace CSVReaderTests
         #region Public Methods
 
         [Test]
+        public void TestIRMAImport()
+        {
+            var reader = new Reader();
+            reader.Initialize<IRMA.Set>();
+
+            var result = reader.Get<IRMA.Set>(@"..\..\..\ExampleIRMA\_Example.txt").FirstOrDefault();
+
+            Assert.IsTrue(result.Diagrams.Any());
+        }
+
+        [Test]
         public void TestLastInfinite()
         {
             var reader = new Reader(",");

@@ -8,43 +8,43 @@ namespace ExamplePIF
     {
         #region Public Properties
 
-        [Field(14)]
+        [DelimitedField(14)]
         public string Description { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public string DestinationLocation { get; set; }
 
-        [Field(12)]
+        [DelimitedField(12)]
         public string EndDate { get; set; }
 
-        [Field(9)]
+        [DelimitedField(9)]
         public int EntrySpeed { get; set; }
 
-        [Field(10)]
+        [DelimitedField(10)]
         public int ExitSpeed { get; set; }
 
-        [Field(2)]
+        [DelimitedField(2)]
         public string OriginLocation { get; set; }
 
-        [Field(8)]
+        [DelimitedField(8)]
         public string RAGauge { get; set; }
 
-        [Field(4)]
+        [DelimitedField(4)]
         public string RunningLineCode { get; set; }
 
-        [Field(13)]
+        [DelimitedField(13)]
         public string SectionRunningTime { get; set; }
 
-        [Field(7)]
+        [DelimitedField(7)]
         public string Speed { get; set; }
 
-        [Field(11)]
+        [DelimitedField(11)]
         public string StartDate { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string TractionType { get; set; }
 
-        [Field(6)]
+        [DelimitedField(6)]
         public string TrailingLoad { get; set; }
 
         #endregion Public Properties

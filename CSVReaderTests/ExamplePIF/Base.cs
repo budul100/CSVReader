@@ -6,7 +6,7 @@ namespace ExamplePIF
     {
         #region Public Properties
 
-        [Field(1)]
+        [DelimitedField(1)]
         public string ActionCode { get; set; }
 
         #endregion Public Properties

@@ -9,55 +9,55 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(14)]
+        [DelimitedField(14)]
         public BidOfferStatus BidOfferStatus { get; set; }
 
         public IEnumerable<DateTime> Dates { get; set; }
 
         public int DatesIndex { get; set; }
 
-        [Field(12)]
+        [DelimitedField(12)]
         public string DestinationLocation { get; set; }
 
-        [Field(13)]
+        [DelimitedField(13)]
         public TimeSpan DestinationTime { get; set; }
 
         public Detail[] Details { get; set; }
 
-        [Field(6)]
+        [DelimitedField(6)]
         public string InitialDateOfOperation { get; set; }
 
         public Movement[] Movements { get; set; }
 
-        [Field(4)]
+        [DelimitedField(4)]
         public string NetworkRailTrainReference { get; set; }
 
-        [Field(10)]
+        [DelimitedField(10)]
         public string OriginLocation { get; set; }
 
-        [Field(11)]
+        [DelimitedField(11)]
         public TimeSpan OriginTime { get; set; }
 
         public Reference[] References { get; set; }
 
         public Stop[] Stops { get; set; }
 
-        [Field(2)]
+        [DelimitedField(2)]
         public string TocId { get; set; }
 
-        [Field(8)]
+        [DelimitedField(8)]
         public string TOCTrainIdentifier { get; set; }
 
-        [Field(7)]
+        [DelimitedField(7)]
         public string TrainDates { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public string TrainID { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string TrainLayer { get; set; }
 
-        [Field(9)]
+        [DelimitedField(9)]
         public string TsdbUid { get; set; }
 
         #endregion Public Properties

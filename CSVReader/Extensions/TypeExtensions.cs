@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace CSVReader.Extensions
 {
@@ -37,19 +38,73 @@ namespace CSVReader.Extensions
 
         public static Type GetContentType(this Type type)
         {
-            return type.GetGenericArguments().FirstOrDefault()
+            var result = type.GetGenericArguments().FirstOrDefault()
                 ?? type.GetElementType()
                 ?? type;
-        }
-
-        public static IEnumerable<PropertyInfo> GetFieldProperties(this Type type)
-        {
-            var result = type.GetProperties()
-                .Where(p => p.GetAttribute<FieldAttribute>() != default)
-                .Where(p => !p.PropertyType.GetContentType().IsClassType())
-                .OrderBy(p => p.GetAttribute<FieldAttribute>().Index).ToArray();
 
             return result;
+        }
+
+        public static IEnumerable<PropertyInfo> GetDelimitedsProperties(this Type type)
+        {
+            var result = type.GetProperties()
+                .Where(p => p.GetAttribute<DelimitedFieldAttribute>() != default)
+                .Where(p => !p.PropertyType.GetContentType().IsClassType())
+                .OrderBy(p => p.GetAttribute<DelimitedFieldAttribute>().Index).ToArray();
+
+            return result;
+        }
+
+        public static IEnumerable<PropertyInfo> GetFixedsProperties(this Type type)
+        {
+            var result = type.GetProperties()
+                .Where(p => p.GetAttribute<FixedFieldAttribute>() != default)
+                .Where(p => !p.PropertyType.GetContentType().IsClassType())
+                .OrderBy(p => p.GetAttribute<FixedFieldAttribute>().Start).ToArray();
+
+            return result;
+        }
+
+        public static int? GetHeaderLength(this Type type)
+        {
+            var result = type.GetAttribute<FixedSetAttribute>()?.HeaderLength;
+
+            return result;
+        }
+
+        public static IEnumerable<char> GetSeparators(this Type type, string given)
+        {
+            var delimiters = type.GetAttribute<DelimitedSetAttribute>()?.Delimiters
+                ?? given;
+
+            var result = delimiters?.ToCharArray()
+                ?? Enumerable.Empty<char>();
+
+            return result;
+        }
+
+        public static Regex GetTrimRegex(this Type type)
+        {
+            var result = default(Regex);
+
+            var setAttribute = type.GetAttribute<BaseSetAttribute>();
+
+            if (setAttribute != default
+                && !string.IsNullOrWhiteSpace(setAttribute.TrimRegex))
+            {
+                result = new Regex(
+                    pattern: $"{setAttribute.TrimRegex}",
+                    options: RegexOptions.Singleline);
+            }
+
+            return result;
+        }
+
+        public static bool HasFixedFields(this Type type)
+        {
+            var setAttribute = type.GetAttribute<FixedSetAttribute>();
+
+            return setAttribute != default;
         }
 
         public static bool IsClassType(this Type type)

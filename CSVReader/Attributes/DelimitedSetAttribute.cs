@@ -3,15 +3,15 @@
 namespace CSVReader.Attributes
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class SetAttribute
-        : TypeAttribute
+    public sealed class DelimitedSetAttribute
+        : BaseSetAttribute
     {
         #region Public Constructors
 
-        public SetAttribute(string headerRegex = default, bool lastValueInfinite = false, string trimRegex = default, string delimiters = ",")
-            : base(headerRegex, lastValueInfinite)
+        public DelimitedSetAttribute(string headerRegex = default, bool lastValueInfinite = false, string trimRegex = default,
+            string delimiters = ",")
+            : base(headerRegex, lastValueInfinite, trimRegex)
         {
-            TrimRegex = trimRegex;
             Delimiters = delimiters;
         }
 
@@ -20,8 +20,6 @@ namespace CSVReader.Attributes
         #region Public Properties
 
         public string Delimiters { get; }
-
-        public string TrimRegex { get; }
 
         #endregion Public Properties
     }

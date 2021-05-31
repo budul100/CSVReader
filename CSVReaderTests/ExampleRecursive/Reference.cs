@@ -7,16 +7,16 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(2)]
+        [DelimitedField(2)]
         public int DetailOrdinal { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public int JourneyOrdinal { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string ReferenceCode { get; set; }
 
-        [Field(4)]
+        [DelimitedField(4)]
         public ReferenceCodes ReferenceCodeType { get; set; }
 
         #endregion Public Properties

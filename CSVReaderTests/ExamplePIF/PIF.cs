@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ExamplePIF
 {
-    [Set(headerRegex: "PEX|PIF", delimiters: "\t")]
+    [DelimitedSet(headerRegex: "PEX|PIF", delimiters: "\t")]
     public class PIF
     {
         #region Public Properties

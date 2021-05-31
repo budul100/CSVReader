@@ -19,26 +19,31 @@ namespace CSVReader.Factories
         private readonly IList<ChildFacade> childFacades = new List<ChildFacade>();
         private readonly IList<Action> condenseSetters = new List<Action>();
         private readonly IDictionary<int, Action<string, bool>> fieldSetters = new Dictionary<int, Action<string, bool>>();
-
+        private readonly int? headerLength;
         private readonly string headerRegex;
         private readonly bool lastValueInfinite;
         private readonly Type recordType;
         private readonly bool trimValues;
+        private readonly char[] valueSeparators;
 
+        private Func<string, IEnumerable<string>> contentGetter;
         private IList fieldList;
         private Action fieldListSetter;
+        private IEnumerable<Func<string, string>> fixedsGetters;
 
         #endregion Private Fields
 
         #region Public Constructors
 
-        public RecordFactory(Type type, bool trimValues)
+        public RecordFactory(Type type, bool trimValues, char[] valueSeparators, int? headerLength)
         {
             this.trimValues = trimValues;
+            this.valueSeparators = valueSeparators;
+            this.headerLength = headerLength;
 
             recordType = type.GetContentType();
 
-            var typeAttribute = recordType.GetAttribute<TypeAttribute>();
+            var typeAttribute = recordType.GetAttribute<BaseTypeAttribute>();
 
             lastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
             headerRegex = typeAttribute?.HeaderRegex;
@@ -60,13 +65,16 @@ namespace CSVReader.Factories
 
         public void CompleteInitialization()
         {
-            HeaderRegexes.Add(headerRegex);
-
-            foreach (var childFactory in childFacades)
+            if (!string.IsNullOrWhiteSpace(headerRegex))
             {
-                childFactory.Factory.CompleteInitialization();
+                HeaderRegexes.Add(headerRegex);
+            }
 
-                HeaderRegexes.UnionWith(childFactory.Factory.HeaderRegexes);
+            foreach (var childFacade in childFacades)
+            {
+                childFacade.Factory.CompleteInitialization();
+
+                HeaderRegexes.UnionWith(childFacade.Factory.HeaderRegexes);
             }
         }
 
@@ -91,22 +99,35 @@ namespace CSVReader.Factories
             CondenseRecord();
         }
 
-        public void InitializeByAttributes()
+        public void InitializeDelimiteds()
         {
-            var fieldProperties = recordType.GetFieldProperties();
+            var properties = recordType.GetDelimitedsProperties();
 
-            foreach (var fieldProperty in fieldProperties)
+            contentGetter = GetContentGetterDelimiteds();
+
+            foreach (var property in properties)
             {
-                var fieldAttribute = fieldProperty.GetAttribute<FieldAttribute>();
+                var attribute = property.GetAttribute<DelimitedFieldAttribute>();
 
-                var isLastInfinite = lastValueInfinite
-                    && fieldProperty == fieldProperties.Last();
+                if (attribute != default)
+                {
+                    var isLastInfinite = lastValueInfinite
+                        && property == properties.Last();
 
-                CreateFieldSetter(
-                    property: fieldProperty,
-                    fieldIndex: fieldAttribute.Index,
-                    fieldLength: fieldAttribute.Length,
-                    isLastInfinite: isLastInfinite);
+                    if (attribute.Count > 1 || isLastInfinite)
+                    {
+                        CreateFieldSetterCollection(
+                            property: property,
+                            fieldIndex: attribute.Index,
+                            fieldCount: attribute.Count);
+                    }
+                    else
+                    {
+                        CreateFieldSetterSingle(
+                            property: property,
+                            fieldIndex: attribute.Index);
+                    }
+                }
             }
 
             var childProperties = recordType.GetChildProperties();
@@ -114,13 +135,41 @@ namespace CSVReader.Factories
             foreach (var itemProperty in childProperties)
             {
                 var childFacade = GetChildFacade(itemProperty);
-                childFacade.Factory.InitializeByAttributes();
+                childFacade.Factory.InitializeDelimiteds();
             }
         }
 
-        public void SetContents(IEnumerable<string> contents)
+        public void InitializeFixeds()
+        {
+            var properties = recordType.GetFixedsProperties();
+
+            fixedsGetters = GetFixedGetters(properties).ToArray();
+            contentGetter = GetContentGetterFixeds();
+
+            var index = (headerLength ?? 0) > 0 ? 1 : 0;
+
+            foreach (var property in properties)
+            {
+                CreateFieldSetterSingle(
+                    property: property,
+                    fieldIndex: index++);
+            }
+
+            var childProperties = recordType.GetChildProperties();
+
+            foreach (var itemProperty in childProperties)
+            {
+                var childFacade = GetChildFacade(itemProperty);
+                childFacade.Factory.InitializeFixeds();
+            }
+        }
+
+        public void SetContents(string line)
         {
             IsNewRecord = false;
+
+            var contents = contentGetter
+                .Invoke(line).ToArray();
 
             if (contents?.Any() ?? false)
             {
@@ -140,7 +189,7 @@ namespace CSVReader.Factories
                         .Where(c => c.Factory.HeaderRegexes.Any(r => contents.First().IsMatchOrEmptyPattern(r)))
                         .SingleOrDefault();
 
-                    relevantChild?.ContentsSetter.Invoke(contents);
+                    relevantChild?.ContentsSetter.Invoke(line);
                 }
             }
         }
@@ -149,9 +198,9 @@ namespace CSVReader.Factories
 
         #region Private Methods
 
-        private void AddChild(IList itemList, RecordFactory childFactory, IEnumerable<string> values)
+        private void AddChild(IList itemList, RecordFactory childFactory, string line)
         {
-            childFactory.SetContents(values);
+            childFactory.SetContents(line);
 
             if (childFactory.IsNewRecord)
             {
@@ -166,11 +215,7 @@ namespace CSVReader.Factories
                 RenewFieldList(property);
             }
 
-            var converted = trimValues && value != default
-                ? value.Trim()
-                : value;
-
-            fieldList.Add(converted);
+            fieldList.Add(value);
 
             if (isLastValue)
             {
@@ -187,9 +232,7 @@ namespace CSVReader.Factories
                     RenewFieldList(property);
                 }
 
-                var converted = trimValues && value != default
-                    ? value.Trim().To(type)
-                    : value.To(type);
+                var converted = value.To(type);
 
                 fieldList.Add(converted);
             }
@@ -241,42 +284,42 @@ namespace CSVReader.Factories
             fieldListSetter = default;
         }
 
-        private void CreateFieldSetter(PropertyInfo property, int fieldIndex, int fieldLength, bool isLastInfinite)
+        private void CreateFieldSetterCollection(PropertyInfo property, int fieldIndex, int fieldCount)
         {
             var type = property.PropertyType.GetContentType();
 
-            if (fieldLength == 1 && !isLastInfinite)
+            for (var columnIndex = fieldIndex; columnIndex < fieldIndex + fieldCount; columnIndex++)
             {
                 if (type == typeof(string))
                 {
                     fieldSetters.Add(
-                        key: fieldIndex,
-                        value: (value, isLastValue) => SetText(property, value));
+                        key: columnIndex,
+                        value: (value, isLastValue) => AddText(property, value, isLastValue));
                 }
                 else
                 {
                     fieldSetters.Add(
-                        key: fieldIndex,
-                        value: (value, isLastValue) => SetValue(property, type, value));
+                        key: columnIndex,
+                        value: (value, isLastValue) => AddValue(property, type, value, isLastValue));
                 }
+            }
+        }
+
+        private void CreateFieldSetterSingle(PropertyInfo property, int fieldIndex)
+        {
+            var type = property.PropertyType.GetContentType();
+
+            if (type == typeof(string))
+            {
+                fieldSetters.Add(
+                    key: fieldIndex,
+                    value: (value, isLastValue) => SetText(property, value));
             }
             else
             {
-                for (var columnIndex = fieldIndex; columnIndex < fieldIndex + fieldLength; columnIndex++)
-                {
-                    if (type == typeof(string))
-                    {
-                        fieldSetters.Add(
-                            key: columnIndex,
-                            value: (value, isLastValue) => AddText(property, value, isLastValue));
-                    }
-                    else
-                    {
-                        fieldSetters.Add(
-                            key: columnIndex,
-                            value: (value, isLastValue) => AddValue(property, type, value, isLastValue));
-                    }
-                }
+                fieldSetters.Add(
+                    key: fieldIndex,
+                    value: (value, isLastValue) => SetValue(property, type, value));
             }
         }
 
@@ -286,7 +329,9 @@ namespace CSVReader.Factories
 
             var childFactory = new RecordFactory(
                 type: itemType.GetContentType(),
-                trimValues: trimValues);
+                trimValues: trimValues,
+                valueSeparators: valueSeparators,
+                headerLength: headerLength);
 
             var result = new ChildFacade
             {
@@ -297,18 +342,92 @@ namespace CSVReader.Factories
             {
                 var itemList = itemType.GetAsList();
 
-                result.ContentsSetter = (values) => AddChild(itemList, childFactory, values);
+                result.ContentsSetter = (line) => AddChild(itemList, childFactory, line);
 
                 condenseSetters.Add(() => CondenseChildList(property, itemType, itemList));
             }
             else
             {
-                result.ContentsSetter = (values) => SetChild(property, childFactory, values);
+                result.ContentsSetter = (line) => SetChild(property, childFactory, line);
             }
 
             childFacades.Add(result);
 
             return result;
+        }
+
+        private IEnumerable<string> GetContentDelimiteds(string line)
+        {
+            var result = line.Split(valueSeparators);
+
+            if (trimValues)
+            {
+                result = result
+                    .Select(v => v.Trim()).ToArray();
+            }
+
+            return result;
+        }
+
+        private IEnumerable<string> GetContentFixeds(string line)
+        {
+            if (fixedsGetters?.Any() ?? false)
+            {
+                foreach (var fixedsGetter in fixedsGetters)
+                {
+                    var result = fixedsGetter.Invoke(line);
+
+                    if (trimValues)
+                    {
+                        result = result.Trim();
+                    }
+
+                    yield return result;
+                }
+            }
+        }
+
+        private Func<string, IEnumerable<string>> GetContentGetterDelimiteds()
+        {
+            IEnumerable<string> result(string line) => GetContentDelimiteds(line);
+
+            return result;
+        }
+
+        private Func<string, IEnumerable<string>> GetContentGetterFixeds()
+        {
+            IEnumerable<string> result(string line) => GetContentFixeds(line);
+
+            return result;
+        }
+
+        private IEnumerable<Func<string, string>> GetFixedGetters(IEnumerable<PropertyInfo> properties)
+        {
+            if ((headerLength ?? 0) > 0)
+            {
+                string result(string line) => line.Substring(
+                    startIndex: 0,
+                    length: headerLength.Value);
+
+                yield return result;
+            }
+
+            if (properties?.Any() ?? false)
+            {
+                foreach (var property in properties)
+                {
+                    var attribute = property.GetAttribute<FixedFieldAttribute>();
+
+                    if (attribute != default)
+                    {
+                        string result(string line) => line.Substring(
+                            startIndex: attribute.Start,
+                            length: attribute.Length);
+
+                        yield return result;
+                    }
+                }
+            }
         }
 
         private void RenewFieldList(PropertyInfo property)
@@ -328,14 +447,14 @@ namespace CSVReader.Factories
             IsNewRecord = true;
         }
 
-        private void SetChild(PropertyInfo property, RecordFactory childFactory, IEnumerable<string> values)
+        private void SetChild(PropertyInfo property, RecordFactory childFactory, string line)
         {
             if (property.GetValue(Record) != default)
             {
                 throw new PropertyAlreadySetException($"The property {property.Name} can only be set once.");
             }
 
-            childFactory.SetContents(values);
+            childFactory.SetContents(line);
 
             if (childFactory.IsNewRecord)
             {
@@ -376,13 +495,9 @@ namespace CSVReader.Factories
         {
             fieldListSetter?.Invoke();
 
-            var converted = trimValues && value != default
-                ? value.Trim()
-                : value;
-
             property.SetValue(
                 obj: Record,
-                value: converted);
+                value: value);
         }
 
         private void SetValue(PropertyInfo property, Type type, string value)
@@ -391,9 +506,7 @@ namespace CSVReader.Factories
             {
                 fieldListSetter?.Invoke();
 
-                var converted = trimValues && value != default
-                    ? value.Trim().To(type)
-                    : value.To(type);
+                var converted = value.To(type);
 
                 property.SetValue(
                     obj: Record,

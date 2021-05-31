@@ -1,5 +1,4 @@
-﻿using CSVReader.Attributes;
-using CSVReader.Extensions;
+﻿using CSVReader.Extensions;
 using CSVReader.Factories;
 using System;
 using System.Collections.Generic;
@@ -20,7 +19,6 @@ namespace CSVReader
 
         private Func<RecordFactory> basefactoryGetter;
         private Regex trimRegex;
-        private char[] valueSeparators;
 
         #endregion Private Fields
 
@@ -135,26 +133,28 @@ namespace CSVReader
 
         #region Private Methods
 
-        private IEnumerable<char> GetDelimiters(Type type, string given)
+        private RecordFactory GetBaseFactory(Type type)
         {
-            var delimiters = type.GetAttribute<SetAttribute>()?.Delimiters
-                ?? given;
+            var valueSeparators = type.GetSeparators(delimiters).ToArray();
+            var headerLength = type.GetHeaderLength();
 
-            var result = delimiters?.ToCharArray()
-                ?? Enumerable.Empty<char>();
-
-            return result;
-        }
-
-        private RecordFactory GetFactoryByAttributes(Type type)
-        {
             var result = new RecordFactory(
                 type: type,
-                trimValues: trimValues);
+                trimValues: trimValues,
+                valueSeparators: valueSeparators,
+                headerLength: headerLength);
 
             if (result != default)
             {
-                result.InitializeByAttributes();
+                if (type.HasFixedFields())
+                {
+                    result.InitializeFixeds();
+                }
+                else
+                {
+                    result.InitializeDelimiteds();
+                }
+
                 result.CompleteInitialization();
             }
 
@@ -217,10 +217,7 @@ namespace CSVReader
                     {
                         try
                         {
-                            var contents = line
-                                .Split(valueSeparators).ToArray();
-
-                            baseFactory.SetContents(contents);
+                            baseFactory.SetContents(line);
                         }
                         catch (Exception ex)
                         {
@@ -242,31 +239,10 @@ namespace CSVReader
             }
         }
 
-        private Regex GetTrimRegex(Type type)
-        {
-            var result = default(Regex);
-
-            var fileAttribute = type.GetAttribute<SetAttribute>();
-
-            if (fileAttribute != default
-                && !string.IsNullOrWhiteSpace(fileAttribute.TrimRegex))
-            {
-                result = new Regex(
-                    pattern: $"{fileAttribute.TrimRegex}",
-                    options: RegexOptions.Singleline);
-            }
-
-            return result;
-        }
-
         private void Initialize(Type type)
         {
-            basefactoryGetter = () => GetFactoryByAttributes(type);
-
-            trimRegex = GetTrimRegex(type);
-            valueSeparators = GetDelimiters(
-                type: type,
-                given: delimiters).ToArray();
+            basefactoryGetter = () => GetBaseFactory(type);
+            trimRegex = type.GetTrimRegex();
         }
 
         #endregion Private Methods

@@ -3,25 +3,15 @@
 namespace CSVReader.Attributes
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public class TypeAttribute
-        : Attribute
+    public sealed class TypeAttribute
+        : BaseTypeAttribute
     {
         #region Public Constructors
 
         public TypeAttribute(string headerRegex = default, bool lastValueInfinite = false)
-        {
-            HeaderRegex = headerRegex;
-            LastValueInfinite = lastValueInfinite;
-        }
+            : base(headerRegex, lastValueInfinite)
+        { }
 
         #endregion Public Constructors
-
-        #region Public Properties
-
-        public string HeaderRegex { get; }
-
-        public bool LastValueInfinite { get; }
-
-        #endregion Public Properties
     }
 }

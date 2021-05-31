@@ -6,7 +6,7 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(2)]
+        [DelimitedField(2)]
         public int JourneyLegOrdinal { get; set; }
 
         #endregion Public Properties

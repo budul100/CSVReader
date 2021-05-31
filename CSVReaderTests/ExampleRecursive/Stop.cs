@@ -7,28 +7,28 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(4)]
+        [DelimitedField(4)]
         public string Arrival { get; set; }
 
-        [Field(7)]
+        [DelimitedField(7)]
         public string ArrivalAdvertised { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string Departure { get; set; }
 
-        [Field(8)]
+        [DelimitedField(8)]
         public string DepartureAdvertised { get; set; }
 
-        [Field(10)]
+        [DelimitedField(10)]
         public bool EndPivot { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public string Location { get; set; }
 
-        [Field(6)]
+        [DelimitedField(6)]
         public string Platform { get; set; }
 
-        [Field(9)]
+        [DelimitedField(9)]
         public bool StartPivot { get; set; }
 
         #endregion Public Properties

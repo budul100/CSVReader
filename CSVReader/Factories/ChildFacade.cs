@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace CSVReader.Factories
 {
@@ -7,7 +6,7 @@ namespace CSVReader.Factories
     {
         #region Public Properties
 
-        public Action<IEnumerable<string>> ContentsSetter { get; set; }
+        public Action<string> ContentsSetter { get; set; }
 
         public RecordFactory Factory { get; set; }
 

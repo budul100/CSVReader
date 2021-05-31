@@ -8,37 +8,37 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(13)]
+        [DelimitedField(13)]
         public string Adjustment { get; set; }
 
-        [Field(4)]
+        [DelimitedField(4)]
         public string Destination { get; set; }
 
-        [Field(10)]
+        [DelimitedField(10)]
         public string EngineeringAllowance { get; set; }
 
-        [Field(8)]
+        [DelimitedField(8)]
         public int EntrySpeed { get; set; }
 
-        [Field(9)]
+        [DelimitedField(9)]
         public int ExitSpeed { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public string Origin { get; set; }
 
-        [Field(11)]
+        [DelimitedField(11)]
         public string PathingAllowance { get; set; }
 
-        [Field(12)]
+        [DelimitedField(12)]
         public string PerformanceAllowance { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string RunningLineCode { get; set; }
 
-        [Field(7)]
+        [DelimitedField(7)]
         public TimeSpan? TimeEnd { get; set; }
 
-        [Field(6)]
+        [DelimitedField(6)]
         public TimeSpan? TimeStart { get; set; }
 
         #endregion Public Properties

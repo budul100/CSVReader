@@ -3,16 +3,16 @@ using System.Collections.Generic;
 
 namespace CSVReaderTests.ExampleLastInfinite
 {
-    [Set(delimiters: ";", lastValueInfinite: true)]
+    [DelimitedSet(delimiters: ";", lastValueInfinite: true)]
     public class RouteDefinition
         : BaseDefinition
     {
         #region Public Properties
 
-        [Field(4)]
+        [DelimitedField(4)]
         public override IEnumerable<string> Anchors { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public bool? IsBackward { get; set; }
 
         #endregion Public Properties

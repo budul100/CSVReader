@@ -7,37 +7,37 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(2)]
+        [DelimitedField(2)]
         public int CeROrdinal { get; set; }
 
-        [Field(4)]
+        [DelimitedField(4)]
         public string ContractCode { get; set; }
 
-        [Field(12)]
+        [DelimitedField(12)]
         public bool DriverOnlyOperation { get; set; }
 
-        [Field(3)]
+        [DelimitedField(3)]
         public int OriginJourneyLegOrdinal { get; set; }
 
-        [Field(9)]
+        [DelimitedField(9)]
         public string RAGauge { get; set; }
 
-        [Field(10)]
+        [DelimitedField(10)]
         public string RouteCode { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string ServiceCode { get; set; }
 
-        [Field(8)]
+        [DelimitedField(8)]
         public string Speed { get; set; }
 
-        [Field(6)]
+        [DelimitedField(6)]
         public string TractionType { get; set; }
 
-        [Field(7)]
+        [DelimitedField(7)]
         public string TrailingLoad { get; set; }
 
-        [Field(11)]
+        [DelimitedField(11)]
         public string UICIdentifier { get; set; }
 
         #endregion Public Properties

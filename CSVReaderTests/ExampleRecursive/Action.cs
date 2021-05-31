@@ -6,7 +6,7 @@ namespace ExampleRecursive.PEX
     {
         #region Public Properties
 
-        [Field(1)]
+        [DelimitedField(1)]
         public ActionCodes ActionCode { get; set; }
 
         #endregion Public Properties

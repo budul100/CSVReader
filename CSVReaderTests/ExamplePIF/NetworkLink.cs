@@ -9,55 +9,55 @@ namespace ExamplePIF
     {
         #region Public Properties
 
-        [Field(3)]
+        [DelimitedField(3)]
         public string DestinationLocation { get; set; }
 
-        [Field(10)]
+        [DelimitedField(10)]
         public int Distance { get; set; }
 
-        [Field(12)]
+        [DelimitedField(12)]
         public char DOONonPassenger { get; set; }
 
-        [Field(11)]
+        [DelimitedField(11)]
         public char DOOPassenger { get; set; }
 
-        [Field(7)]
+        [DelimitedField(7)]
         public DateTime EndDate { get; set; }
 
-        [Field(9)]
+        [DelimitedField(9)]
         public char FinalDirection { get; set; }
 
-        [Field(8)]
+        [DelimitedField(8)]
         public char InitalDirection { get; set; }
 
-        [Field(18)]
+        [DelimitedField(18)]
         public int MaximumTrainLength { get; set; }
 
-        [Field(2)]
+        [DelimitedField(2)]
         public string OriginLocation { get; set; }
 
-        [Field(16)]
+        [DelimitedField(16)]
         public string PowerSupplyType { get; set; }
 
-        [Field(13)]
+        [DelimitedField(13)]
         public char RadioElectricTokenBlock { get; set; }
 
-        [Field(15)]
+        [DelimitedField(15)]
         public char ReversibleLine { get; set; }
 
-        [Field(17)]
+        [DelimitedField(17)]
         public string RouteAvailabilityNumber { get; set; }
 
-        [Field(4)]
+        [DelimitedField(4)]
         public string RunningLineCode { get; set; }
 
-        [Field(5)]
+        [DelimitedField(5)]
         public string RunningLineDescription { get; set; }
 
-        [Field(6)]
+        [DelimitedField(6)]
         public DateTime StartDate { get; set; }
 
-        [Field(14)]
+        [DelimitedField(14)]
         public string Zone { get; set; }
 
         #endregion Public Properties
