@@ -7,8 +7,8 @@ namespace CSVReader.Factories
     {
         #region Public Constructors
 
-        public ChildFactory(Type type, bool trimValues, char[] valueSeparators, int? headerLength)
-            : base(type, trimValues, valueSeparators, headerLength)
+        public ChildFactory(Type type, bool trimValues, char[] valueSeparators)
+            : base(type, trimValues, valueSeparators)
         { }
 
         #endregion Public Constructors

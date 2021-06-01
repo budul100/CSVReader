@@ -19,8 +19,10 @@ namespace CSVReaderTests
 
             var result = reader.Get<IRMA.Set>(@"..\..\..\ExampleIRMA\_Example.txt").FirstOrDefault();
 
-            Assert.IsTrue(result.Diagrams.Any());
+            Assert.IsTrue(result.Diagrams.Count() == 487);
             Assert.IsTrue(result.Diagrams.All(d => d.Details != default));
+
+            Assert.IsTrue(result.Diagrams.First().Skills.Count() == 7);
         }
 
         [Test]

@@ -1,5 +1,6 @@
 using CSVReader.Attributes;
 using System;
+using System.Collections.Generic;
 
 namespace IRMA
 {
@@ -31,18 +32,18 @@ namespace IRMA
         [FixedField(
             start: 52,
             length: 1)]
-        public string IsCancelledMarker { get; set; }
+        public string IsCancelledText { get; set; }
 
         public bool IsLTP { get; set; }
 
         [FixedField(
             start: 39,
             length: 3)]
-        public string IsLTPMarker { get; set; }
+        public string IsLTPText { get; set; }
 
-        public TimeSpan OffTime { get; set; }
+        public IEnumerable<Skill> Skills { get; set; }
 
-        public TimeSpan OnTime { get; set; }
+        public Timings Timings { get; set; }
 
         #endregion Public Properties
     }

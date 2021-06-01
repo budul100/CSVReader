@@ -65,16 +65,9 @@ namespace CSVReader.Extensions
             return result;
         }
 
-        public static int? GetHeaderLength(this Type type)
-        {
-            var result = type.GetAttribute<FixedSetAttribute>()?.HeaderLength;
-
-            return result;
-        }
-
         public static IEnumerable<char> GetSeparators(this Type type, string given)
         {
-            var delimiters = type.GetAttribute<DelimitedSetAttribute>()?.Delimiters
+            var delimiters = type.GetAttribute<BaseSetAttribute>()?.Delimiters
                 ?? given;
 
             var result = delimiters?.ToCharArray()
@@ -102,9 +95,9 @@ namespace CSVReader.Extensions
 
         public static bool HasFixedFields(this Type type)
         {
-            var setAttribute = type.GetAttribute<FixedSetAttribute>();
+            var fixedSetAttribute = type.GetAttribute<FixedSetAttribute>();
 
-            return setAttribute != default;
+            return fixedSetAttribute != default;
         }
 
         public static bool IsClassType(this Type type)

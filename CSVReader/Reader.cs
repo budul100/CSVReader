@@ -136,13 +136,11 @@ namespace CSVReader
         private RecordFactory GetBaseFactory(Type type)
         {
             var valueSeparators = type.GetSeparators(delimiters).ToArray();
-            var headerLength = type.GetHeaderLength();
 
             var result = new RecordFactory(
                 type: type,
                 trimValues: trimValues,
-                valueSeparators: valueSeparators,
-                headerLength: headerLength);
+                valueSeparators: valueSeparators);
 
             if (result != default)
             {

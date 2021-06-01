@@ -20,8 +20,7 @@ namespace CSVReader.Factories
         private readonly IList<ChildFactory> childFactories = new List<ChildFactory>();
         private readonly IList<Action> condenseSetters = new List<Action>();
         private readonly IDictionary<int, Action<string, bool>> fieldSetters = new Dictionary<int, Action<string, bool>>();
-        private readonly int? headerLength;
-        private readonly string headerRegex;
+        private readonly string headerPattern;
         private readonly bool lastValueInfinite;
         private readonly Type recordType;
         private readonly bool trimValues;
@@ -36,11 +35,10 @@ namespace CSVReader.Factories
 
         #region Public Constructors
 
-        public RecordFactory(Type type, bool trimValues, char[] valueSeparators, int? headerLength)
+        public RecordFactory(Type type, bool trimValues, char[] valueSeparators)
         {
             this.trimValues = trimValues;
             this.valueSeparators = valueSeparators;
-            this.headerLength = headerLength;
 
             recordType = type.GetContentType();
 
@@ -48,11 +46,11 @@ namespace CSVReader.Factories
 
             lastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
 
-            headerRegex = typeAttribute?.HeaderRegex;
+            headerPattern = typeAttribute?.HeaderRegex;
 
-            if (!string.IsNullOrWhiteSpace(headerRegex))
+            if (!string.IsNullOrWhiteSpace(headerPattern))
             {
-                HeaderRegexes.Add(headerRegex);
+                HeaderPatterns.Add(headerPattern);
             }
         }
 
@@ -60,7 +58,7 @@ namespace CSVReader.Factories
 
         #region Public Properties
 
-        public HashSet<string> HeaderRegexes { get; } = new HashSet<string>();
+        public HashSet<string> HeaderPatterns { get; } = new HashSet<string>();
 
         public bool IsNewRecord { get; private set; }
 
@@ -133,7 +131,7 @@ namespace CSVReader.Factories
                 var childFactory = GetChildFactory(itemProperty);
                 childFactory.InitializeDelimiteds();
 
-                HeaderRegexes.UnionWith(childFactory.HeaderRegexes);
+                HeaderPatterns.UnionWith(childFactory.HeaderPatterns);
             }
         }
 
@@ -164,7 +162,7 @@ namespace CSVReader.Factories
                 var childFactory = GetChildFactory(itemProperty);
                 childFactory.InitializeFixeds();
 
-                HeaderRegexes.UnionWith(childFactory.HeaderRegexes);
+                HeaderPatterns.UnionWith(childFactory.HeaderPatterns);
             }
         }
 
@@ -174,7 +172,7 @@ namespace CSVReader.Factories
 
             var headerChecker = headerCheckGetter.Invoke(line);
 
-            if (headerChecker.Invoke(headerRegex))
+            if (headerChecker.Invoke(headerPattern))
             {
                 RenewRecord();
 
@@ -186,7 +184,7 @@ namespace CSVReader.Factories
             else if (childFactories.Any())
             {
                 var relevant = childFactories
-                    .Where(c => c.HeaderRegexes.Any(r => headerChecker(r)))
+                    .Where(c => c.HeaderPatterns.Any(r => headerChecker(r)))
                     .SingleOrDefault();
 
                 relevant?.ContentsSetter.Invoke(line);
@@ -329,8 +327,7 @@ namespace CSVReader.Factories
             var result = new ChildFactory(
                 type: itemType.GetContentType(),
                 trimValues: trimValues,
-                valueSeparators: valueSeparators,
-                headerLength: headerLength);
+                valueSeparators: valueSeparators);
 
             if (itemType.IsEnumerableType())
             {
@@ -352,15 +349,15 @@ namespace CSVReader.Factories
 
         private Func<string, Func<string, bool>> GetHeaderCheckGetterDelimiteds()
         {
-            var firstValueRegex = new Regex($"^[^{new string(valueSeparators)}]+");
+            var headerRegex = new Regex($"^[^{new string(valueSeparators)}]+");
 
             Func<string, bool> result(string line)
             {
-                var header = firstValueRegex.Match(line).Value;
+                var header = headerRegex.Match(line).Value;
 
-                bool check(string regex)
+                bool check(string pattern)
                 {
-                    return header.IsMatchOrEmptyPattern(regex);
+                    return header.IsMatchOrEmptyPattern(pattern);
                 }
 
                 return check;
@@ -373,18 +370,11 @@ namespace CSVReader.Factories
         {
             Func<string, bool> result(string line)
             {
-                var header = default(string);
-
-                if ((headerLength ?? 0) > 0)
+                bool check(string pattern)
                 {
-                    header = line.GetFixedText(
-                        start: 0,
-                        length: headerLength.Value);
-                }
+                    var frontPattern = pattern.GetFrontPattern();
 
-                bool check(string regex)
-                {
-                    return header.IsMatchOrEmptyPattern(regex);
+                    return line.IsMatchOrEmptyPattern(frontPattern);
                 }
 
                 return check;

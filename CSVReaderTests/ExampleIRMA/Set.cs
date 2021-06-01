@@ -4,7 +4,6 @@ using System.Collections.Generic;
 namespace IRMA
 {
     [FixedSet(
-        headerLength: 2,
         headerRegex: "HD")]
     public class Set
     {

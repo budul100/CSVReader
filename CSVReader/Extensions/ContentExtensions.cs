@@ -66,6 +66,24 @@ namespace CSVReader.Extensions
             return result;
         }
 
+        public static string GetFrontPattern(this string pattern)
+        {
+            if (!string.IsNullOrWhiteSpace(pattern))
+            {
+                if (!pattern.StartsWith("^"))
+                {
+                    pattern = $"^{pattern}";
+                }
+
+                if (!pattern.EndsWith(".+"))
+                {
+                    pattern = $"{pattern}.+";
+                }
+            }
+
+            return pattern;
+        }
+
         #endregion Public Methods
     }
 }
