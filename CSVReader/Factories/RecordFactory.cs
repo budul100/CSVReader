@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using TB.ComponentModel;
 
 namespace CSVReader.Factories
@@ -16,7 +17,7 @@ namespace CSVReader.Factories
     {
         #region Private Fields
 
-        private readonly IList<ChildFacade> childFacades = new List<ChildFacade>();
+        private readonly IList<ChildFactory> childFactories = new List<ChildFactory>();
         private readonly IList<Action> condenseSetters = new List<Action>();
         private readonly IDictionary<int, Action<string, bool>> fieldSetters = new Dictionary<int, Action<string, bool>>();
         private readonly int? headerLength;
@@ -29,7 +30,7 @@ namespace CSVReader.Factories
         private Func<string, IEnumerable<string>> contentGetter;
         private IList fieldList;
         private Action fieldListSetter;
-        private IEnumerable<Func<string, string>> fixedsGetters;
+        private Func<string, Func<string, bool>> headerCheckGetter;
 
         #endregion Private Fields
 
@@ -46,45 +47,36 @@ namespace CSVReader.Factories
             var typeAttribute = recordType.GetAttribute<BaseTypeAttribute>();
 
             lastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
+
             headerRegex = typeAttribute?.HeaderRegex;
+
+            if (!string.IsNullOrWhiteSpace(headerRegex))
+            {
+                HeaderRegexes.Add(headerRegex);
+            }
         }
 
         #endregion Public Constructors
 
         #region Public Properties
 
-        public HashSet<string> HeaderRegexes { get; private set; } = new HashSet<string>();
+        public HashSet<string> HeaderRegexes { get; } = new HashSet<string>();
 
         public bool IsNewRecord { get; private set; }
 
-        public object Record { get; set; }
+        public object Record { get; private set; }
 
         #endregion Public Properties
 
         #region Public Methods
 
-        public void CompleteInitialization()
-        {
-            if (!string.IsNullOrWhiteSpace(headerRegex))
-            {
-                HeaderRegexes.Add(headerRegex);
-            }
-
-            foreach (var childFacade in childFacades)
-            {
-                childFacade.Factory.CompleteInitialization();
-
-                HeaderRegexes.UnionWith(childFacade.Factory.HeaderRegexes);
-            }
-        }
-
         public void CondenseRecord()
         {
             if (Record != default)
             {
-                foreach (var childFactory in childFacades)
+                foreach (var childFactory in childFactories)
                 {
-                    childFactory.Factory.CondenseRecord();
+                    childFactory.CondenseRecord();
                 }
 
                 foreach (var condenseSetter in condenseSetters)
@@ -101,9 +93,13 @@ namespace CSVReader.Factories
 
         public void InitializeDelimiteds()
         {
+            headerCheckGetter = GetHeaderCheckGetterDelimiteds();
+
             var properties = recordType.GetDelimitedsProperties();
 
-            contentGetter = GetContentGetterDelimiteds();
+            contentGetter = (line) => line.GetContents(
+                separator: valueSeparators,
+                trimValues: trimValues);
 
             foreach (var property in properties)
             {
@@ -134,19 +130,25 @@ namespace CSVReader.Factories
 
             foreach (var itemProperty in childProperties)
             {
-                var childFacade = GetChildFacade(itemProperty);
-                childFacade.Factory.InitializeDelimiteds();
+                var childFactory = GetChildFactory(itemProperty);
+                childFactory.InitializeDelimiteds();
+
+                HeaderRegexes.UnionWith(childFactory.HeaderRegexes);
             }
         }
 
         public void InitializeFixeds()
         {
+            headerCheckGetter = GetHeaderCheckGetterFixeds();
+
             var properties = recordType.GetFixedsProperties();
+            var fixedsGetters = properties.GetFixedGetters().ToArray();
 
-            fixedsGetters = GetFixedGetters(properties).ToArray();
-            contentGetter = GetContentGetterFixeds();
+            contentGetter = (string line) => line.GetContents(
+                getters: fixedsGetters,
+                trimValues: trimValues);
 
-            var index = (headerLength ?? 0) > 0 ? 1 : 0;
+            var index = 0;
 
             foreach (var property in properties)
             {
@@ -159,8 +161,10 @@ namespace CSVReader.Factories
 
             foreach (var itemProperty in childProperties)
             {
-                var childFacade = GetChildFacade(itemProperty);
-                childFacade.Factory.InitializeFixeds();
+                var childFactory = GetChildFactory(itemProperty);
+                childFactory.InitializeFixeds();
+
+                HeaderRegexes.UnionWith(childFactory.HeaderRegexes);
             }
         }
 
@@ -168,29 +172,24 @@ namespace CSVReader.Factories
         {
             IsNewRecord = false;
 
-            var contents = contentGetter
-                .Invoke(line).ToArray();
+            var headerChecker = headerCheckGetter.Invoke(line);
 
-            if (contents?.Any() ?? false)
+            if (headerChecker.Invoke(headerRegex))
             {
-                if (contents.First().IsMatchOrEmptyPattern(headerRegex))
-                {
-                    RenewRecord();
-                }
+                RenewRecord();
 
-                if (contents.First().IsMatchOrEmptyPattern(headerRegex)
-                    && fieldSetters.Any())
+                if (fieldSetters.Any())
                 {
-                    SetFields(contents);
+                    SetFields(line);
                 }
-                else if (childFacades.Any())
-                {
-                    var relevantChild = childFacades
-                        .Where(c => c.Factory.HeaderRegexes.Any(r => contents.First().IsMatchOrEmptyPattern(r)))
-                        .SingleOrDefault();
+            }
+            else if (childFactories.Any())
+            {
+                var relevant = childFactories
+                    .Where(c => c.HeaderRegexes.Any(r => headerChecker(r)))
+                    .SingleOrDefault();
 
-                    relevantChild?.ContentsSetter.Invoke(line);
-                }
+                relevant?.ContentsSetter.Invoke(line);
             }
         }
 
@@ -323,111 +322,75 @@ namespace CSVReader.Factories
             }
         }
 
-        private ChildFacade GetChildFacade(PropertyInfo property)
+        private ChildFactory GetChildFactory(PropertyInfo property)
         {
             var itemType = property.PropertyType;
 
-            var childFactory = new RecordFactory(
+            var result = new ChildFactory(
                 type: itemType.GetContentType(),
                 trimValues: trimValues,
                 valueSeparators: valueSeparators,
                 headerLength: headerLength);
 
-            var result = new ChildFacade
-            {
-                Factory = childFactory,
-            };
-
             if (itemType.IsEnumerableType())
             {
                 var itemList = itemType.GetAsList();
 
-                result.ContentsSetter = (line) => AddChild(itemList, childFactory, line);
+                result.ContentsSetter = (line) => AddChild(itemList, result, line);
 
                 condenseSetters.Add(() => CondenseChildList(property, itemType, itemList));
             }
             else
             {
-                result.ContentsSetter = (line) => SetChild(property, childFactory, line);
+                result.ContentsSetter = (line) => SetChild(property, result, line);
             }
 
-            childFacades.Add(result);
+            childFactories.Add(result);
 
             return result;
         }
 
-        private IEnumerable<string> GetContentDelimiteds(string line)
+        private Func<string, Func<string, bool>> GetHeaderCheckGetterDelimiteds()
         {
-            var result = line.Split(valueSeparators);
+            var firstValueRegex = new Regex($"^[^{new string(valueSeparators)}]+");
 
-            if (trimValues)
+            Func<string, bool> result(string line)
             {
-                result = result
-                    .Select(v => v.Trim()).ToArray();
-            }
+                var header = firstValueRegex.Match(line).Value;
 
-            return result;
-        }
-
-        private IEnumerable<string> GetContentFixeds(string line)
-        {
-            if (fixedsGetters?.Any() ?? false)
-            {
-                foreach (var fixedsGetter in fixedsGetters)
+                bool check(string regex)
                 {
-                    var result = fixedsGetter.Invoke(line);
-
-                    if (trimValues)
-                    {
-                        result = result.Trim();
-                    }
-
-                    yield return result;
+                    return header.IsMatchOrEmptyPattern(regex);
                 }
-            }
-        }
 
-        private Func<string, IEnumerable<string>> GetContentGetterDelimiteds()
-        {
-            IEnumerable<string> result(string line) => GetContentDelimiteds(line);
+                return check;
+            }
 
             return result;
         }
 
-        private Func<string, IEnumerable<string>> GetContentGetterFixeds()
+        private Func<string, Func<string, bool>> GetHeaderCheckGetterFixeds()
         {
-            IEnumerable<string> result(string line) => GetContentFixeds(line);
-
-            return result;
-        }
-
-        private IEnumerable<Func<string, string>> GetFixedGetters(IEnumerable<PropertyInfo> properties)
-        {
-            if ((headerLength ?? 0) > 0)
+            Func<string, bool> result(string line)
             {
-                string result(string line) => line.Substring(
-                    startIndex: 0,
-                    length: headerLength.Value);
+                var header = default(string);
 
-                yield return result;
-            }
-
-            if (properties?.Any() ?? false)
-            {
-                foreach (var property in properties)
+                if ((headerLength ?? 0) > 0)
                 {
-                    var attribute = property.GetAttribute<FixedFieldAttribute>();
-
-                    if (attribute != default)
-                    {
-                        string result(string line) => line.Substring(
-                            startIndex: attribute.Start,
-                            length: attribute.Length);
-
-                        yield return result;
-                    }
+                    header = line.GetFixedText(
+                        start: 0,
+                        length: headerLength.Value);
                 }
+
+                bool check(string regex)
+                {
+                    return header.IsMatchOrEmptyPattern(regex);
+                }
+
+                return check;
             }
+
+            return result;
         }
 
         private void RenewFieldList(PropertyInfo property)
@@ -464,30 +427,36 @@ namespace CSVReader.Factories
             }
         }
 
-        private void SetFields(IEnumerable<string> contents)
+        private void SetFields(string line)
         {
-            var setterIndex = 0;
-            var lastSetterIndex = fieldSetters.Last().Key;
+            var contents = contentGetter
+                .Invoke(line).ToArray();
 
-            foreach (var value in contents)
+            if (contents?.Any() ?? false)
             {
-                var isLastValue = value == contents.Last();
+                var setterIndex = 0;
+                var lastSetterIndex = fieldSetters.Last().Key;
 
-                if (fieldSetters.ContainsKey(setterIndex))
+                foreach (var value in contents)
                 {
-                    fieldSetters[setterIndex].Invoke(
-                        arg1: value,
-                        arg2: isLastValue);
-                }
-                else if (lastValueInfinite
-                    && setterIndex > lastSetterIndex)
-                {
-                    fieldSetters[lastSetterIndex].Invoke(
-                        arg1: value,
-                        arg2: isLastValue);
-                }
+                    var isLastValue = value == contents.Last();
 
-                setterIndex++;
+                    if (fieldSetters.ContainsKey(setterIndex))
+                    {
+                        fieldSetters[setterIndex].Invoke(
+                            arg1: value,
+                            arg2: isLastValue);
+                    }
+                    else if (lastValueInfinite
+                        && setterIndex > lastSetterIndex)
+                    {
+                        fieldSetters[lastSetterIndex].Invoke(
+                            arg1: value,
+                            arg2: isLastValue);
+                    }
+
+                    setterIndex++;
+                }
             }
         }
 

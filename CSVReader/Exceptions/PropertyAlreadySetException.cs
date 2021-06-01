@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Runtime.Serialization;
 
 namespace CSVReader.Exceptions
 {
-    public class PropertyAlreadySetException : Exception
+    public class PropertyAlreadySetException
+        : Exception
     {
         #region Public Constructors
 
@@ -18,5 +20,13 @@ namespace CSVReader.Exceptions
         { }
 
         #endregion Public Constructors
+
+        #region Protected Constructors
+
+        protected PropertyAlreadySetException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        { }
+
+        #endregion Protected Constructors
     }
 }

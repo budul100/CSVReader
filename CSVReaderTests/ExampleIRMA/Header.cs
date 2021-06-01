@@ -5,23 +5,21 @@ namespace IRMA
 {
     [Type(
         headerRegex: "DH")]
-    public class Diagram
+    public class Header
     {
         #region Public Properties
-
-        public string Bitmask { get; set; }
 
         [FixedField(
             start: 26,
             length: 2)]
         public string DepotCode { get; set; }
 
+        public Details Details { get; set; }
+
         [FixedField(
             start: 28,
             length: 4)]
         public int? DiagramNumber { get; set; }
-
-        public DateTime EndDate { get; set; }
 
         [FixedField(
             start: 47,
@@ -45,8 +43,6 @@ namespace IRMA
         public TimeSpan OffTime { get; set; }
 
         public TimeSpan OnTime { get; set; }
-
-        public DateTime StartDate { get; set; }
 
         #endregion Public Properties
     }

@@ -154,8 +154,6 @@ namespace CSVReader
                 {
                     result.InitializeDelimiteds();
                 }
-
-                result.CompleteInitialization();
             }
 
             return result;

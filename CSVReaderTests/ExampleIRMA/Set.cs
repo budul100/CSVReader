@@ -10,7 +10,7 @@ namespace IRMA
     {
         #region Public Properties
 
-        public IEnumerable<Diagram> Diagrams { get; set; }
+        public IEnumerable<Header> Diagrams { get; set; }
 
         #endregion Public Properties
     }
