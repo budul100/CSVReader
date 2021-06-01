@@ -8,9 +8,9 @@ namespace CSVReader.Attributes
     {
         #region Public Constructors
 
-        public DelimitedSetAttribute(string headerRegex = default, string trimRegex = default, string delimiters = ",",
-            bool lastValueInfinite = false)
-            : base(headerRegex, trimRegex, delimiters, lastValueInfinite)
+        public DelimitedSetAttribute(string headerPattern = default, string trimPattern = default,
+            string delimiters = ",", bool lastValueInfinite = false)
+            : base(headerPattern, trimPattern, delimiters, lastValueInfinite)
         { }
 
         #endregion Public Constructors

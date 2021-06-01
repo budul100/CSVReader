@@ -44,11 +44,11 @@ namespace CSVReader
         {
             var pathes = new string[] { path };
 
-            var records = GetRecords(
+            var result = GetRecords(
                 pathes: pathes,
                 progress: progress).ToArray();
 
-            return records;
+            return result;
         }
 
         public IEnumerable<T> Get<T>(string path, IProgress<double> progress = default)
@@ -79,11 +79,11 @@ namespace CSVReader
 
         public IEnumerable<object> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
         {
-            var records = GetRecords(
+            var result = GetRecords(
                 pathes: pathes,
                 progress: progress).ToArray();
 
-            return records;
+            return result;
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(string path, IProgress<double> progress = default)

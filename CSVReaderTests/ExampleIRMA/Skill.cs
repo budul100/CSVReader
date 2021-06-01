@@ -3,7 +3,7 @@ using CSVReader.Attributes;
 namespace IRMA
 {
     [Type(
-        headerRegex: "LX")]
+        headerPattern: "LX")]
     public class Skill
     {
         #region Public Properties

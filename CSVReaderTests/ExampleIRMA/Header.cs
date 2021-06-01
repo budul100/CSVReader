@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace IRMA
 {
     [Type(
-        headerRegex: "DH")]
+        headerPattern: "DH")]
     public class Header
     {
         #region Public Properties

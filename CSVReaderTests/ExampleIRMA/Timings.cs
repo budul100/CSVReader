@@ -4,7 +4,7 @@ using System;
 namespace IRMA
 {
     [Type(
-        headerRegex: "OO")]
+        headerPattern: "OO")]
     public class Timings
     {
         #region Public Properties

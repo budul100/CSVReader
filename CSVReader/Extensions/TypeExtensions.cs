@@ -83,10 +83,10 @@ namespace CSVReader.Extensions
             var setAttribute = type.GetAttribute<BaseSetAttribute>();
 
             if (setAttribute != default
-                && !string.IsNullOrWhiteSpace(setAttribute.TrimRegex))
+                && !string.IsNullOrWhiteSpace(setAttribute.TrimPattern))
             {
                 result = new Regex(
-                    pattern: $"{setAttribute.TrimRegex}",
+                    pattern: $"{setAttribute.TrimPattern}",
                     options: RegexOptions.Singleline);
             }
 

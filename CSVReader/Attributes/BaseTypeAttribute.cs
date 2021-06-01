@@ -8,9 +8,9 @@ namespace CSVReader.Attributes
     {
         #region Protected Constructors
 
-        protected BaseTypeAttribute(string headerRegex = default, bool lastValueInfinite = false)
+        protected BaseTypeAttribute(string headerPattern = default, bool lastValueInfinite = false)
         {
-            HeaderRegex = headerRegex;
+            HeaderPattern = headerPattern;
             LastValueInfinite = lastValueInfinite;
         }
 
@@ -18,7 +18,7 @@ namespace CSVReader.Attributes
 
         #region Public Properties
 
-        public string HeaderRegex { get; }
+        public string HeaderPattern { get; }
 
         public bool LastValueInfinite { get; }
 

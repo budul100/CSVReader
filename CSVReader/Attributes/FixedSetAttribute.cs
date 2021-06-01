@@ -8,8 +8,8 @@ namespace CSVReader.Attributes
     {
         #region Public Constructors
 
-        public FixedSetAttribute(string headerRegex = default, string trimRegex = default)
-            : base(headerRegex, trimRegex, default, false)
+        public FixedSetAttribute(string headerPattern = default, string trimPattern = default)
+            : base(headerPattern, trimPattern, default, false)
         { }
 
         #endregion Public Constructors

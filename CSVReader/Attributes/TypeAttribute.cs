@@ -8,8 +8,8 @@ namespace CSVReader.Attributes
     {
         #region Public Constructors
 
-        public TypeAttribute(string headerRegex = default, bool lastValueInfinite = false)
-            : base(headerRegex, lastValueInfinite)
+        public TypeAttribute(string headerPattern = default, bool lastValueInfinite = false)
+            : base(headerPattern, lastValueInfinite)
         { }
 
         #endregion Public Constructors

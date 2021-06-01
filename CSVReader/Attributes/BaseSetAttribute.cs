@@ -8,11 +8,11 @@ namespace CSVReader.Attributes
     {
         #region Protected Constructors
 
-        protected BaseSetAttribute(string headerRegex, string trimRegex, string delimiters, bool lastValueInfinite)
-            : base(headerRegex, lastValueInfinite)
+        protected BaseSetAttribute(string headerPattern, string trimPattern, string delimiters, bool lastValueInfinite)
+            : base(headerPattern, lastValueInfinite)
         {
-            TrimRegex = trimRegex;
             Delimiters = delimiters;
+            TrimPattern = trimPattern;
         }
 
         #endregion Protected Constructors
@@ -21,7 +21,7 @@ namespace CSVReader.Attributes
 
         public string Delimiters { get; }
 
-        public string TrimRegex { get; }
+        public string TrimPattern { get; }
 
         #endregion Public Properties
     }

@@ -4,7 +4,7 @@ using System;
 namespace IRMA
 {
     [Type(
-        headerRegex: "DD")]
+        headerPattern: "DD")]
     public class Details
     {
         #region Public Properties

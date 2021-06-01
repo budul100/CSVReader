@@ -3,8 +3,8 @@
 namespace ExampleRecursive.PEX
 {
     [DelimitedSet(
-        trimRegex: ".*(?=PIT)",
-        headerRegex: "PEX|PIF",
+        headerPattern: "PIF|PEX",
+        trimPattern: ".*(?=PIT)",
         delimiters: "\t")]
     public class Offer
     {

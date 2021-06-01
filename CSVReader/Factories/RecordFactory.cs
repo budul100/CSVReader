@@ -45,8 +45,7 @@ namespace CSVReader.Factories
             var typeAttribute = recordType.GetAttribute<BaseTypeAttribute>();
 
             lastValueInfinite = typeAttribute?.LastValueInfinite ?? false;
-
-            headerPattern = typeAttribute?.HeaderRegex;
+            headerPattern = typeAttribute?.HeaderPattern;
 
             if (!string.IsNullOrWhiteSpace(headerPattern))
             {
@@ -126,10 +125,16 @@ namespace CSVReader.Factories
 
             var childProperties = recordType.GetChildProperties();
 
-            foreach (var itemProperty in childProperties)
+            foreach (var childProperty in childProperties)
             {
-                var childFactory = GetChildFactory(itemProperty);
+                var childFactory = GetChildFactory(childProperty);
                 childFactory.InitializeDelimiteds();
+
+                if (childFactory.HeaderPatterns.Any()
+                    && string.IsNullOrWhiteSpace(headerPattern))
+                {
+                    throw new MissingHeaderPatternException(recordType);
+                }
 
                 HeaderPatterns.UnionWith(childFactory.HeaderPatterns);
             }
@@ -157,10 +162,16 @@ namespace CSVReader.Factories
 
             var childProperties = recordType.GetChildProperties();
 
-            foreach (var itemProperty in childProperties)
+            foreach (var childProperty in childProperties)
             {
-                var childFactory = GetChildFactory(itemProperty);
+                var childFactory = GetChildFactory(childProperty);
                 childFactory.InitializeFixeds();
+
+                if (childFactory.HeaderPatterns.Any()
+                    && string.IsNullOrWhiteSpace(headerPattern))
+                {
+                    throw new MissingHeaderPatternException(recordType);
+                }
 
                 HeaderPatterns.UnionWith(childFactory.HeaderPatterns);
             }
