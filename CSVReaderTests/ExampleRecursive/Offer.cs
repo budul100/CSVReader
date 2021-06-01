@@ -2,9 +2,6 @@
 
 namespace ExampleRecursive.PEX
 {
-    [DelimitedSet(
-        trimPattern: ".*(?=PIT)",
-        delimiters: "\t")]
     public class Offer
     {
         #region Public Properties

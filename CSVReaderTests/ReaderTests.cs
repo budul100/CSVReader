@@ -51,14 +51,27 @@ namespace CSVReaderTests
         }
 
         [Test]
-        public void TestRecursive()
+        public void TestRecursiveWithHeader()
         {
             var reader = new Reader(",");
-            reader.Initialize<Offer>();
+            reader.Initialize<OfferWithHeader>();
 
             var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
 
-            Assert.IsTrue(result.Count() == 1);
+            Assert.IsTrue(result.Single().TimetableStartDate != default);
+            Assert.IsTrue(result.Any(r => r.Trains.Any()));
+            Assert.IsTrue(result.First().Trains.Count() == 5);
+        }
+
+        [Test]
+        public void TestRecursiveWithoutHeader()
+        {
+            var reader = new Reader(",");
+            reader.Initialize<OfferWithoutHeader>();
+
+            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
+
+            Assert.IsTrue(result.Single().TimetableStartDate == default);
             Assert.IsTrue(result.Any(r => r.Trains.Any()));
             Assert.IsTrue(result.First().Trains.Count() == 5);
         }
