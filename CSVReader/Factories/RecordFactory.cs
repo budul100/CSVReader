@@ -130,12 +130,6 @@ namespace CSVReader.Factories
                 var childFactory = GetChildFactory(childProperty);
                 childFactory.InitializeDelimiteds();
 
-                if (childFactory.HeaderPatterns.Any()
-                    && string.IsNullOrWhiteSpace(headerPattern))
-                {
-                    throw new MissingHeaderPatternException(recordType);
-                }
-
                 HeaderPatterns.UnionWith(childFactory.HeaderPatterns);
             }
         }
@@ -167,12 +161,6 @@ namespace CSVReader.Factories
                 var childFactory = GetChildFactory(childProperty);
                 childFactory.InitializeFixeds();
 
-                if (childFactory.HeaderPatterns.Any()
-                    && string.IsNullOrWhiteSpace(headerPattern))
-                {
-                    throw new MissingHeaderPatternException(recordType);
-                }
-
                 HeaderPatterns.UnionWith(childFactory.HeaderPatterns);
             }
         }
@@ -183,14 +171,17 @@ namespace CSVReader.Factories
 
             var headerChecker = headerCheckGetter.Invoke(line);
 
-            if (headerChecker.Invoke(headerPattern))
+            var setFields = !childFactories.Any()
+                || (!string.IsNullOrWhiteSpace(headerPattern) && headerChecker.Invoke(headerPattern));
+
+            if (Record == default || setFields)
             {
                 RenewRecord();
+            }
 
-                if (fieldSetters.Any())
-                {
-                    SetFields(line);
-                }
+            if (setFields)
+            {
+                SetFields(line);
             }
             else if (childFactories.Any())
             {
@@ -430,33 +421,36 @@ namespace CSVReader.Factories
 
         private void SetFields(string line)
         {
-            var contents = contentGetter
-                .Invoke(line).ToArray();
-
-            if (contents?.Any() ?? false)
+            if (fieldSetters.Any())
             {
-                var setterIndex = 0;
-                var lastSetterIndex = fieldSetters.Last().Key;
+                var contents = contentGetter
+                    .Invoke(line).ToArray();
 
-                foreach (var value in contents)
+                if (contents?.Any() ?? false)
                 {
-                    var isLastValue = value == contents.Last();
+                    var setterIndex = 0;
+                    var lastSetterIndex = fieldSetters.Last().Key;
 
-                    if (fieldSetters.ContainsKey(setterIndex))
+                    foreach (var value in contents)
                     {
-                        fieldSetters[setterIndex].Invoke(
-                            arg1: value,
-                            arg2: isLastValue);
-                    }
-                    else if (lastValueInfinite
-                        && setterIndex > lastSetterIndex)
-                    {
-                        fieldSetters[lastSetterIndex].Invoke(
-                            arg1: value,
-                            arg2: isLastValue);
-                    }
+                        var isLastValue = value == contents.Last();
 
-                    setterIndex++;
+                        if (fieldSetters.ContainsKey(setterIndex))
+                        {
+                            fieldSetters[setterIndex].Invoke(
+                                arg1: value,
+                                arg2: isLastValue);
+                        }
+                        else if (lastValueInfinite
+                            && setterIndex > lastSetterIndex)
+                        {
+                            fieldSetters[lastSetterIndex].Invoke(
+                                arg1: value,
+                                arg2: isLastValue);
+                        }
+
+                        setterIndex++;
+                    }
                 }
             }
         }
