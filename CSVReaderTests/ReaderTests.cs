@@ -56,11 +56,11 @@ namespace CSVReaderTests
             var reader = new Reader(",");
             reader.Initialize<Offer>();
 
-            var result1 = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").FirstOrDefault();
-            var result2 = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").FirstOrDefault();
+            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
 
-            Assert.IsTrue(result1.Trains.Count() == 5);
-            Assert.IsTrue(result2.Trains.Count() == 5);
+            Assert.IsTrue(result.Count() == 1);
+            Assert.IsTrue(result.Any(r => r.Trains.Any()));
+            Assert.IsTrue(result.First().Trains.Count() == 5);
         }
 
         #endregion Public Methods
