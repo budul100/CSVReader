@@ -218,7 +218,7 @@ namespace CSVReader
                         catch (Exception ex)
                         {
                             throw new ApplicationException(
-                                message: $"The file '{path}' cannot be red.",
+                                message: $"The file '{path}' cannot be read.",
                                 innerException: ex);
                         }
 

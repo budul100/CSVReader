@@ -37,7 +37,7 @@ namespace CSVReader.Exceptions
 
         private static string GetMessage(string line, int start)
         {
-            var result = $"A value starting from {start} cannot be red from the following line since it has {line?.Length ?? 0} characters only: {line}.";
+            var result = $"A value starting from {start} cannot be read from the following line since it has {line?.Length ?? 0} characters only: {line}.";
 
             return result;
         }
