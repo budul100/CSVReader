@@ -14,6 +14,7 @@ namespace CSVReader
         #region Private Fields
 
         private static readonly char[] lineSeparators = new[] { '\r', '\n' };
+
         private readonly string delimiters;
         private readonly bool trimValues;
 
@@ -44,11 +45,9 @@ namespace CSVReader
         {
             var pathes = new string[] { path };
 
-            var result = GetRecords(
+            return GetRecords(
                 pathes: pathes,
                 progress: progress).ToArray();
-
-            return result;
         }
 
         public IEnumerable<T> Get<T>(string path, IProgress<double> progress = default)
@@ -79,49 +78,39 @@ namespace CSVReader
 
         public IEnumerable<object> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
         {
-            var result = GetRecords(
+            return GetRecords(
                 pathes: pathes,
                 progress: progress).ToArray();
-
-            return result;
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(string path, IProgress<double> progress = default)
             where T : class
         {
-            var result = await Task.FromResult(Get<T>(
+            return await Task.FromResult(Get<T>(
                 path: path,
-                progress: progress));
-
-            return result;
+                progress: progress)).ConfigureAwait(false);
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(IEnumerable<string> pathes, IProgress<double> progress = default)
             where T : class
         {
-            var result = await Task.FromResult(Get<T>(
+            return await Task.FromResult(Get<T>(
                 pathes: pathes,
-                progress: progress).ToArray());
-
-            return result;
+                progress: progress).ToArray()).ConfigureAwait(false);
         }
 
         public async Task<IEnumerable<object>> GetAsync(string path, IProgress<double> progress = default)
         {
-            var result = await Task.FromResult(Get(
+            return await Task.FromResult(Get(
                 path: path,
-                progress: progress));
-
-            return result;
+                progress: progress)).ConfigureAwait(false);
         }
 
         public async Task<IEnumerable<object>> GetAsync(IEnumerable<string> pathes, IProgress<double> progress = default)
         {
-            var result = await Task.FromResult(Get(
+            return await Task.FromResult(Get(
                 pathes: pathes,
-                progress: progress).ToArray());
-
-            return result;
+                progress: progress).ToArray()).ConfigureAwait(false);
         }
 
         public void Initialize<T>()
@@ -166,10 +155,8 @@ namespace CSVReader
                 text = trimRegex.Match(text).Value;
             }
 
-            var result = text.Split(lineSeparators)
+            return text.Split(lineSeparators)
                 .Where(t => !string.IsNullOrEmpty(t)).ToArray();
-
-            return result;
         }
 
         private Action<int, int> GetProgessSetter(IProgress<double> progress, int pathesIndex, int pathesSum)
@@ -223,11 +210,13 @@ namespace CSVReader
                         }
 
                         if (baseFactory.IsNewRecord)
+                        {
                             yield return baseFactory.Record;
+                        }
 
                         progressSetter?.Invoke(
                             arg1: linesIndex++,
-                            arg2: lines.Count());
+                            arg2: lines.Length);
                     }
                 }
 
