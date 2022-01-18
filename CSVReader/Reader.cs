@@ -46,7 +46,7 @@ namespace CSVReader
             var pathes = new string[] { path };
 
             return GetRecords(
-                pathes: pathes,
+                paths: pathes,
                 progress: progress).ToArray();
         }
 
@@ -63,11 +63,18 @@ namespace CSVReader
             }
         }
 
+        public IEnumerable<object> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
+        {
+            return GetRecords(
+                paths: pathes,
+                progress: progress).ToArray();
+        }
+
         public IEnumerable<T> Get<T>(IEnumerable<string> pathes, IProgress<double> progress = default)
             where T : class
         {
             var records = GetRecords(
-                pathes: pathes,
+                paths: pathes,
                 progress: progress).ToArray();
 
             foreach (var record in records)
@@ -76,15 +83,8 @@ namespace CSVReader
             }
         }
 
-        public IEnumerable<object> Get(IEnumerable<string> pathes, IProgress<double> progress = default)
-        {
-            return GetRecords(
-                pathes: pathes,
-                progress: progress).ToArray();
-        }
-
         public async Task<IEnumerable<T>> GetAsync<T>(string path, IProgress<double> progress = default)
-            where T : class
+                                            where T : class
         {
             return await Task.FromResult(Get<T>(
                 path: path,
@@ -167,60 +167,63 @@ namespace CSVReader
             return (linesIndex, linesSum) => progress?.Report(pathesProgess + (linesIndex++ / (pathesSumDouble * linesSum)));
         }
 
-        private IEnumerable<object> GetRecords(IEnumerable<string> pathes, IProgress<double> progress = default)
+        private IEnumerable<object> GetRecords(IEnumerable<string> paths, IProgress<double> progress = default)
         {
             if (basefactoryGetter == default)
             {
                 throw new ApplicationException("The reader must be initialized at first.");
             }
 
-            var pathesIndex = 0;
-
-            foreach (var path in pathes)
+            if (paths?.Any() ?? false)
             {
-                if (!File.Exists(path))
+                var pathesIndex = 0;
+
+                foreach (var path in paths)
                 {
-                    throw new FileNotFoundException($"The file '{path}' does not exist.");
-                }
-
-                var progressSetter = GetProgessSetter(
-                    progress: progress,
-                    pathesIndex: pathesIndex,
-                    pathesSum: pathes.Count());
-
-                var lines = GetLines(
-                    path: path,
-                    trimRegex: trimRegex).ToArray();
-
-                using (var baseFactory = basefactoryGetter())
-                {
-                    var linesIndex = 0;
-
-                    foreach (var line in lines)
+                    if (!File.Exists(path))
                     {
-                        try
-                        {
-                            baseFactory.SetContents(line);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new ApplicationException(
-                                message: $"The file '{path}' cannot be read.",
-                                innerException: ex);
-                        }
-
-                        if (baseFactory.IsNewRecord)
-                        {
-                            yield return baseFactory.Record;
-                        }
-
-                        progressSetter?.Invoke(
-                            arg1: linesIndex++,
-                            arg2: lines.Length);
+                        throw new FileNotFoundException($"The file '{path}' does not exist.");
                     }
-                }
 
-                pathesIndex++;
+                    var progressSetter = GetProgessSetter(
+                        progress: progress,
+                        pathesIndex: pathesIndex,
+                        pathesSum: paths.Count());
+
+                    var lines = GetLines(
+                        path: path,
+                        trimRegex: trimRegex).ToArray();
+
+                    using (var baseFactory = basefactoryGetter())
+                    {
+                        var linesIndex = 0;
+
+                        foreach (var line in lines)
+                        {
+                            try
+                            {
+                                baseFactory.SetContents(line);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ApplicationException(
+                                    message: $"The file '{path}' cannot be read.",
+                                    innerException: ex);
+                            }
+
+                            if (baseFactory.IsNewRecord)
+                            {
+                                yield return baseFactory.Record;
+                            }
+
+                            progressSetter?.Invoke(
+                                arg1: linesIndex++,
+                                arg2: lines.Length);
+                        }
+                    }
+
+                    pathesIndex++;
+                }
             }
         }
 
