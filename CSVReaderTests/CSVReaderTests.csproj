@@ -16,4 +16,8 @@
     <ProjectReference Include="..\CSVReader\CSVReader.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\.editorconfig" />
+  </ItemGroup>
+
 </Project>

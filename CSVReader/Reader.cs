@@ -25,14 +25,14 @@ namespace CSVReader
 
         #region Public Constructors
 
-        public Reader(string delimiters = ",", bool trimValues = true)
+        public Reader(string delimiters = default, bool trimValues = true)
         {
             this.delimiters = delimiters;
             this.trimValues = trimValues;
         }
 
-        public Reader(Type type, string delimiters = ",", bool trimValues = true)
-            : this(delimiters, trimValues)
+        public Reader(Type type, string delimiters = default, bool trimValues = true)
+            : this(delimiters: delimiters, trimValues: trimValues)
         {
             Initialize(type);
         }
@@ -84,7 +84,7 @@ namespace CSVReader
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(string path, IProgress<double> progress = default)
-                                            where T : class
+            where T : class
         {
             return await Task.FromResult(Get<T>(
                 path: path,

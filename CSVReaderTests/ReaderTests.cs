@@ -4,6 +4,7 @@ using ExamplePIF;
 using ExampleRecursive.PEX;
 using NUnit.Framework;
 using System.Linq;
+using System.Reflection;
 
 namespace CSVReaderTests
 {
@@ -28,13 +29,13 @@ namespace CSVReaderTests
         [Test]
         public void TestLastInfinite()
         {
-            var reader = new Reader(",");
+            var reader = new Reader();
             reader.Initialize<RouteDefinition>();
 
             var result = reader.Get<RouteDefinition>(@"..\..\..\ExampleLastInfinite\_Example.csv").ToArray();
 
-            Assert.IsTrue(result.Count() == 7);
-            Assert.IsTrue(result.First().Anchors.Count() == 11);
+            Assert.IsTrue(result.Length == 7);
+            Assert.IsTrue(result[0].Anchors.Count() == 11);
         }
 
         [Test]
@@ -53,27 +54,37 @@ namespace CSVReaderTests
         [Test]
         public void TestRecursiveWithHeader()
         {
-            var reader = new Reader(",");
+            var reader = new Reader();
             reader.Initialize<OfferWithHeader>();
 
             var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
 
             Assert.IsTrue(result.Single().TimetableStartDate != default);
-            Assert.IsTrue(result.Any(r => r.Trains.Any()));
-            Assert.IsTrue(result.First().Trains.Count() == 5);
+            Assert.IsTrue(result.Any(r => r.Trains.Length > 0));
+            Assert.IsTrue(result[0].Trains.Length == 5);
         }
 
         [Test]
         public void TestRecursiveWithoutHeader()
         {
-            var reader = new Reader(",");
+            var reader = new Reader();
             reader.Initialize<OfferWithoutHeader>();
 
             var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
 
             Assert.IsTrue(result.Single().TimetableStartDate == default);
-            Assert.IsTrue(result.Any(r => r.Trains.Any()));
-            Assert.IsTrue(result.First().Trains.Count() == 5);
+            Assert.IsTrue(result.Any(r => r.Trains.Length > 0));
+            Assert.IsTrue(result[0].Trains.Length == 5);
+        }
+
+        [Test]
+        public void TestSameIndex()
+        {
+            var reader = new Reader(",");
+            reader.Initialize<ExampleSameIndex.RouteDefinition>();
+
+            Assert.Throws<CustomAttributeFormatException>(
+                () => reader.Get<ExampleSameIndex.RouteDefinition>(@"..\..\..\ExampleSameIndex\_Example.txt").ToArray());
         }
 
         #endregion Public Methods

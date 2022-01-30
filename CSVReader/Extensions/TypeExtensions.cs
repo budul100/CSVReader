@@ -10,6 +10,12 @@ namespace CSVReader.Extensions
 {
     internal static class TypeExtensions
     {
+        #region Private Fields
+
+        private const string DefaultDelimiter = ",";
+
+        #endregion Private Fields
+
         #region Public Methods
 
         public static IList GetAsList(this Type type)
@@ -67,8 +73,9 @@ namespace CSVReader.Extensions
 
         public static IEnumerable<char> GetSeparators(this Type type, string given)
         {
-            var delimiters = type.GetAttribute<BaseSetAttribute>()?.Delimiters
-                ?? given;
+            var delimiters = given
+                ?? type.GetAttribute<BaseSetAttribute>()?.Delimiters
+                ?? DefaultDelimiter;
 
             var result = delimiters?.ToCharArray()
                 ?? Enumerable.Empty<char>();

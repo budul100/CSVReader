@@ -107,6 +107,13 @@ namespace CSVReader.Factories
                     var isLastInfinite = lastValueInfinite
                         && property == properties.Last();
 
+                    if (fieldSetters.ContainsKey(attribute.Index))
+                    {
+                        throw new CustomAttributeFormatException(
+                            $"There can be only one property with {typeof(DelimitedFieldAttribute)} " +
+                            $"and index {attribute.Index} in {recordType}. ");
+                    }
+
                     if (attribute.Count > 1 || isLastInfinite)
                     {
                         CreateFieldSetterCollection(
@@ -171,7 +178,7 @@ namespace CSVReader.Factories
 
             var headerChecker = headerCheckGetter.Invoke(line);
 
-            var setFields = !childFactories.Any()
+            var setFields = childFactories.Count == 0
                 || (!string.IsNullOrWhiteSpace(headerPattern) && headerChecker.Invoke(headerPattern));
 
             if (Record == default || setFields)
@@ -183,11 +190,10 @@ namespace CSVReader.Factories
             {
                 SetFields(line);
             }
-            else if (childFactories.Any())
+            else if (childFactories.Count > 0)
             {
                 var relevant = childFactories
-                    .Where(c => c.HeaderPatterns.Any(r => headerChecker(r)))
-                    .SingleOrDefault();
+                    .SingleOrDefault(c => c.HeaderPatterns.Any(r => headerChecker(r)));
 
                 relevant?.ContentsSetter.Invoke(line);
             }
@@ -312,13 +318,13 @@ namespace CSVReader.Factories
             {
                 fieldSetters.Add(
                     key: fieldIndex,
-                    value: (value, isLastValue) => SetText(property, value));
+                    value: (value, _) => SetText(property, value));
             }
             else
             {
                 fieldSetters.Add(
                     key: fieldIndex,
-                    value: (value, isLastValue) => SetValue(property, type, value));
+                    value: (value, _) => SetValue(property, type, value));
             }
         }
 
@@ -421,7 +427,7 @@ namespace CSVReader.Factories
 
         private void SetFields(string line)
         {
-            if (fieldSetters.Any())
+            if (fieldSetters.Count > 0)
             {
                 var contents = contentGetter
                     .Invoke(line).ToArray();
