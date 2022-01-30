@@ -67,8 +67,8 @@ namespace CSVReader.Extensions
 
         public static IEnumerable<char> GetSeparators(this Type type, string given)
         {
-            var delimiters = type.GetAttribute<BaseSetAttribute>()?.Delimiters
-                ?? given;
+            var delimiters = given
+                ?? type.GetAttribute<BaseSetAttribute>()?.Delimiters;
 
             var result = delimiters?.ToCharArray()
                 ?? Enumerable.Empty<char>();
