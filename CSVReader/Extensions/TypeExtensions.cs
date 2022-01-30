@@ -36,8 +36,8 @@ namespace CSVReader.Extensions
         public static IEnumerable<PropertyInfo> GetChildProperties(this Type type)
         {
             var result = type.GetProperties()
-                .Where(p => p.PropertyType.GetContentType().IsClassType())
-                .Where(p => p.PropertyType.GetContentType().GetAttribute<TypeAttribute>() != default).ToArray();
+                .Where(p => p.PropertyType.GetContentType().IsClassType()
+                    && p.PropertyType.GetContentType().GetAttribute<TypeAttribute>() != default).ToArray();
 
             return result;
         }
@@ -54,8 +54,8 @@ namespace CSVReader.Extensions
         public static IEnumerable<PropertyInfo> GetDelimitedsProperties(this Type type)
         {
             var result = type.GetProperties()
-                .Where(p => p.GetAttribute<DelimitedFieldAttribute>() != default)
-                .Where(p => !p.PropertyType.GetContentType().IsClassType())
+                .Where(p => p.GetAttribute<DelimitedFieldAttribute>() != default
+                    && !p.PropertyType.GetContentType().IsClassType())
                 .OrderBy(p => p.GetAttribute<DelimitedFieldAttribute>().Index).ToArray();
 
             return result;
@@ -64,8 +64,8 @@ namespace CSVReader.Extensions
         public static IEnumerable<PropertyInfo> GetFixedsProperties(this Type type)
         {
             var result = type.GetProperties()
-                .Where(p => p.GetAttribute<FixedFieldAttribute>() != default)
-                .Where(p => !p.PropertyType.GetContentType().IsClassType())
+                .Where(p => p.GetAttribute<FixedFieldAttribute>() != default
+                    && !p.PropertyType.GetContentType().IsClassType())
                 .OrderBy(p => p.GetAttribute<FixedFieldAttribute>().Start).ToArray();
 
             return result;

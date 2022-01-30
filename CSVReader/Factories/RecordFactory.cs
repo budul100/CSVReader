@@ -109,7 +109,7 @@ namespace CSVReader.Factories
 
                     if (fieldSetters.ContainsKey(attribute.Index))
                     {
-                        throw new CustomAttributeFormatException(
+                        throw new PropertyAlreadySetException(
                             $"There can be only one property with {typeof(DelimitedFieldAttribute)} " +
                             $"and index {attribute.Index} in {recordType}. ");
                     }

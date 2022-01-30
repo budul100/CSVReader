@@ -1,10 +1,10 @@
 using CSVReader;
+using CSVReader.Exceptions;
 using CSVReaderTests.ExampleLastInfinite;
 using ExamplePIF;
 using ExampleRecursive.PEX;
 using NUnit.Framework;
 using System.Linq;
-using System.Reflection;
 
 namespace CSVReaderTests
 {
@@ -83,7 +83,7 @@ namespace CSVReaderTests
             var reader = new Reader(",");
             reader.Initialize<ExampleSameIndex.RouteDefinition>();
 
-            Assert.Throws<CustomAttributeFormatException>(
+            Assert.Throws<PropertyAlreadySetException>(
                 () => reader.Get<ExampleSameIndex.RouteDefinition>(@"..\..\..\ExampleSameIndex\_Example.txt").ToArray());
         }
 
