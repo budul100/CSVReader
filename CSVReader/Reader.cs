@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -16,6 +17,7 @@ namespace CSVReader
         private static readonly char[] lineSeparators = new[] { '\r', '\n' };
 
         private readonly string delimiters;
+        private readonly Encoding encoding;
         private readonly bool trimValues;
 
         private Func<RecordFactory> basefactoryGetter;
@@ -25,14 +27,17 @@ namespace CSVReader
 
         #region Public Constructors
 
-        public Reader(string delimiters = default, bool trimValues = true)
+        public Reader(Encoding encoding = default, string delimiters = default, bool trimValues = true)
         {
             this.delimiters = delimiters;
             this.trimValues = trimValues;
+
+            this.encoding = encoding
+                ?? Encoding.Default;
         }
 
-        public Reader(Type type, string delimiters = default, bool trimValues = true)
-            : this(delimiters: delimiters, trimValues: trimValues)
+        public Reader(Type type, Encoding encoding = default, string delimiters = default, bool trimValues = true)
+            : this(encoding: encoding, delimiters: delimiters, trimValues: trimValues)
         {
             Initialize(type);
         }
@@ -148,26 +153,38 @@ namespace CSVReader
 
         private IEnumerable<string> GetLines(string path, Regex trimRegex)
         {
-            var text = File.ReadAllText(path);
+            var text = File.ReadAllText(
+                path: path,
+                encoding: encoding);
 
             if (trimRegex?.IsMatch(text) ?? false)
             {
                 text = trimRegex.Match(text).Value;
             }
 
-            return text.Split(lineSeparators)
+            var result = text.Split(lineSeparators)
                 .Where(t => !string.IsNullOrEmpty(t)).ToArray();
+
+            return result;
         }
 
         private Action<int, int> GetProgessSetter(IProgress<double> progress, int pathesIndex, int pathesSum)
         {
-            var pathesSumDouble = (double)pathesSum;
-            var pathesProgess = pathesIndex / pathesSumDouble;
+            var result = default(Action<int, int>);
 
-            return (linesIndex, linesSum) => progress?.Report(pathesProgess + (linesIndex++ / (pathesSumDouble * linesSum)));
+            if (progress != default)
+            {
+                var pathesSumDouble = (double)pathesSum;
+                var pathesProgess = pathesIndex / pathesSumDouble;
+
+                result = (int linesIndex, int linesSum) => progress.Report(
+                    value: pathesProgess + (linesIndex++ / (pathesSumDouble * linesSum)));
+            }
+
+            return result;
         }
 
-        private IEnumerable<object> GetRecords(IEnumerable<string> paths, IProgress<double> progress = default)
+        private IEnumerable<object> GetRecords(IEnumerable<string> paths, IProgress<double> progress)
         {
             if (basefactoryGetter == default)
             {

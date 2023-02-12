@@ -97,7 +97,9 @@ namespace CSVReaderTests
         [Test]
         public void TestSameIndex()
         {
-            var reader = new Reader(",");
+            var reader = new Reader(
+                delimiters: ",");
+
             reader.Initialize<ExampleSameIndex.RouteDefinition>();
 
             Assert.Throws<PropertyAlreadySetException>(
