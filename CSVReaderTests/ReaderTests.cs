@@ -39,6 +39,25 @@ namespace CSVReaderTests
         }
 
         [Test]
+        public void TestMultipleFiles()
+        {
+            var reader = new Reader();
+            reader.Initialize<OfferWithHeader>();
+
+            var pathes = new string[]
+            {
+                @"..\..\..\ExamplePEX\_Example.PEX",
+                @"..\..\..\ExamplePEX\_Example.PEX"
+            };
+
+            var result = reader.Get<Offer>(pathes).ToArray();
+
+            Assert.IsTrue(result.Length == 2);
+            Assert.IsTrue(result.Any(r => r.Trains.Length == 5));
+            Assert.IsTrue(result.Any(r => r.TimetableStartDate != default));
+        }
+
+        [Test]
         public void TestPIFImport()
         {
             var reader = new Reader();
@@ -57,11 +76,10 @@ namespace CSVReaderTests
             var reader = new Reader();
             reader.Initialize<OfferWithHeader>();
 
-            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
+            var result = reader.Get<Offer>(@"..\..\..\ExamplePEX\_Example.PEX").ToArray();
 
             Assert.IsTrue(result.Single().TimetableStartDate != default);
-            Assert.IsTrue(result.Any(r => r.Trains.Length > 0));
-            Assert.IsTrue(result[0].Trains.Length == 5);
+            Assert.IsTrue(result.Single().Trains.Length == 5);
         }
 
         [Test]
@@ -70,11 +88,10 @@ namespace CSVReaderTests
             var reader = new Reader();
             reader.Initialize<OfferWithoutHeader>();
 
-            var result = reader.Get<Offer>(@"..\..\..\ExampleRecursive\_Example.PEX").ToArray();
+            var result = reader.Get<Offer>(@"..\..\..\ExamplePEX\_Example.PEX").ToArray();
 
             Assert.IsTrue(result.Single().TimetableStartDate == default);
-            Assert.IsTrue(result.Any(r => r.Trains.Length > 0));
-            Assert.IsTrue(result[0].Trains.Length == 5);
+            Assert.IsTrue(result.Single().Trains.Length == 5);
         }
 
         [Test]

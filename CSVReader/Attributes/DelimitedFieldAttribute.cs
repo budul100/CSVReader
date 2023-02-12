@@ -14,7 +14,7 @@ namespace CSVReader.Attributes
             if (count < 1)
             {
                 throw new ArgumentException(
-                    message: $"Length must be greater than 0",
+                    message: "Length must be greater than 0",
                     paramName: nameof(count));
             }
 
