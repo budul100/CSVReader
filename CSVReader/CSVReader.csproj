@@ -47,6 +47,6 @@
 
   <ItemGroup>
     <PackageReference Include="budul.RegexExtensions" Version="1.5.1" />
-    <PackageReference Include="UniversalTypeConverter" Version="2.0.0" />
+    <PackageReference Include="UniversalTypeConverter" Version="2.6.0" />
   </ItemGroup>
 </Project>
